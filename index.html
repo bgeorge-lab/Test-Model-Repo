@@ -1,0 +1,2324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OBS Propensity Model v2.0 — ZTW + ZTN</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#F8F7F5;color:#1A1A1A;font-size:13px;overflow-x:hidden}
+header{background:#1A1A1A;padding:0.7rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
+.logo{font-size:13px;font-weight:700;color:#E8560A;letter-spacing:.5px;flex-shrink:0}
+.htitle{font-size:12px;color:#666;flex:1}
+.hbtn{font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #444;background:none;color:#CCC;cursor:pointer;flex-shrink:0}
+.dirty-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#E8560A;margin-right:4px;vertical-align:middle}
+.hbtn:hover{background:#333;color:#FFF}
+
+/* Layout */
+.layout{display:flex;min-height:calc(100vh - 40px);transition:margin-right 0.25s}
+.layout.panel-open{margin-right:420px}
+.main-col{flex:1;min-width:0;padding:1.1rem 0.75rem}
+
+/* Upload */
+.upload-zone{border:1.5px dashed #CCC;border-radius:10px;padding:2.5rem;text-align:center;cursor:pointer;background:#FFF;margin-bottom:.75rem}
+.upload-zone:hover{background:#FAFAFA}
+#file-input,#file-input-ob1p,#file-input-zi,#file-input-hgi{display:none}
+.hint{font-size:11px;color:#888;background:#F0EEE8;border-radius:6px;padding:.45rem .75rem}
+#main-ui{display:none}
+.toast{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:#1A1A1A;color:#FFF;font-size:12px;padding:.6rem 1.1rem;border-radius:20px;z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+.toast.success{background:#1A7F3C}
+.toast.warn{background:#B87000}
+.toast.info{background:#0D6E94}
+.upload-zone.loading{border-color:#0D6E94;background:#F0F8FF}
+.upload-zone.loading .uz-icon::after{content:' ⏳'}
+.waiting-banner{display:none;background:#FFF8E1;border:1px solid #FFE082;border-radius:7px;padding:.55rem .85rem;font-size:12px;color:#856404;margin-bottom:.75rem;align-items:center;gap:.5rem}
+.waiting-banner.show{display:flex}
+.data-bar{display:flex;gap:8px;margin-bottom:.85rem;flex-wrap:wrap}
+.dsrc{flex:1;min-width:160px;border-radius:7px;border:1px solid #E5E5E5;padding:.55rem .75rem;display:flex;align-items:center;gap:8px;background:#FFF}
+.dsrc.active{border-color:#C3E6CB;background:#F0FFF4}
+.dsrc.pending{border-color:#FFE082;background:#FFFDE7}
+.dsrc-icon{font-size:15px;flex-shrink:0}
+.dsrc-body{flex:1;min-width:0}
+.dsrc-label{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsrc-sub{font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsrc-btn{font-size:10px;height:22px;padding:0 8px;border-radius:4px;border:1px solid #DDD;background:#FFF;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.dsrc-btn:hover{background:#F5F5F5}
+.dsrc-btn.loaded{border-color:#28A745;color:#28A745}
+.status{font-size:11px;color:#666;background:#F0EEE8;border-radius:6px;padding:.4rem .75rem;margin-bottom:.85rem}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:.85rem}
+.metric{background:#FFF;border-radius:8px;padding:.7rem;text-align:center;border:.5px solid #E5E5E5}
+.metric-val{font-size:20px;font-weight:700}.metric-lbl{font-size:10px;color:#888;margin-top:1px}
+.mv-ztw{color:#6B2E9E}.mv-ztn{color:#0D6E94}
+.tabs{display:flex;border-bottom:1px solid #E5E5E5;margin-bottom:.75rem}
+.tab{padding:5px 12px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;color:#888;background:none;border-top:none;border-left:none;border-right:none}
+.tab.active{color:#1A1A1A;border-bottom-color:#1A1A1A;font-weight:500}
+.controls{display:flex;gap:6px;margin-bottom:.6rem;flex-wrap:wrap;align-items:center}
+.controls select,.controls input{font-size:12px;height:28px;padding:0 8px;border-radius:6px;border:1px solid #DDD;background:#FFF;color:#1A1A1A}
+.expbtn{margin-left:auto;font-size:12px;height:28px;padding:0 10px;border-radius:6px;border:1px solid #DDD;background:#FFF;cursor:pointer}
+.ae-card{transition:box-shadow .15s}.ae-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.rep-filter-bar{position:sticky;top:40px;z-index:90;background:#F8F7F5;padding:.5rem 0 .4rem;border-bottom:1px solid #E5E5E5;margin-bottom:.75rem}
+.fchip{font-size:11px;height:24px;padding:0 9px;border-radius:12px;border:1px solid #DDD;background:#FFF;cursor:pointer;white-space:nowrap;color:#666}
+.fchip:hover{background:#F5F5F5}
+.fchip.active{background:#1A1A1A;color:#FFF;border-color:#1A1A1A}
+.expbtn:hover{background:#F5F5F5}
+table{width:100%;border-collapse:collapse;font-size:12px;background:#FFF;border-radius:8px;overflow:hidden;border:.5px solid #E5E5E5;table-layout:fixed}
+thead th{background:#F5F5F5;padding:8px 12px;text-align:left;font-weight:500;font-size:11px;color:#666;border-bottom:1px solid #E5E5E5;white-space:nowrap;position:relative;user-select:none}
+thead th .resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent}
+thead th .resizer:hover,thead th .resizer.dragging{background:rgba(0,0,0,.15)}
+tbody tr{border-bottom:.5px solid #F0F0F0;cursor:pointer;transition:background .1s}
+tbody tr:hover{background:#FAFAFA}
+tbody tr.sel{background:#EEF4FF;font-weight:500}
+td{padding:7px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb{display:flex;align-items:center;gap:4px}
+.sbar{height:5px;border-radius:3px;flex-shrink:0}.snum{font-size:11px;font-weight:700;min-width:18px}
+.pill{font-size:10px;font-weight:700;padding:2px 6px;border-radius:20px;display:inline-block}
+.pa{background:#D4EDDA;color:#155724}.pb{background:#FFF3CD;color:#856404}.pc{background:#F8D7DA;color:#721c24}
+.flag-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.flag-access{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.flag-fit{background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7}
+.pztw{background:#F3E8FF;color:#4A235A}.pztn{background:#E0F4FF;color:#0B4F6C}
+
+/* ── SLIDE-IN PANEL ── */
+.panel{position:fixed;top:0;right:-440px;width:440px;height:100vh;background:#FFF;border-left:1px solid #E0E0E0;display:flex;flex-direction:column;transition:right 0.25s ease;z-index:200;box-shadow:-4px 0 20px rgba(0,0,0,.08)}
+.panel.open{right:0}
+.panel-header{padding:.85rem 1rem;border-bottom:1px solid #EEE;display:flex;align-items:flex-start;gap:.6rem;flex-shrink:0;background:#FAFAFA}
+.panel-name{flex:1;font-size:14px;font-weight:700;line-height:1.3}
+.panel-meta{font-size:11px;color:#888;margin-top:2px}
+.panel-close{background:none;border:none;cursor:pointer;color:#999;font-size:18px;line-height:1;padding:0;flex-shrink:0;margin-top:1px}
+.panel-scores{padding:.75rem 1rem;border-bottom:1px solid #EEE;flex-shrink:0}
+.lh-banner{border-radius:7px;padding:.55rem .75rem;margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
+.lh-label{font-size:10px;font-weight:700;letter-spacing:.3px}
+.lh-score{font-size:22px;font-weight:700}
+.lh-tier-label{font-size:10px;font-weight:500;margin-top:1px}
+.lh-sources{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.lh-src{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.src-active{background:#E8F5E9;color:#2E7D32}
+.src-missing{background:#F5F5F5;color:#AAA;text-decoration:line-through}
+.score-pair{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:7px}
+.pscore-card{border-radius:7px;padding:.6rem .75rem;border:1px solid #EEE}
+.pscore-card.ztw{border-left:3px solid #6B2E9E}.pscore-card.ztn{border-left:3px solid #0D6E94}
+.pscore-label{font-size:10px;font-weight:600;display:flex;justify-content:space-between;margin-bottom:2px}
+.pscore-num{font-size:22px;font-weight:700}
+.ps-ztw{color:#6B2E9E}.ps-ztn{color:#0D6E94}
+.panel-body{flex:1;overflow-y:auto;padding:.75rem 1rem}
+
+/* Use case accordion */
+.pillar-label{font-size:10px;font-weight:700;letter-spacing:.4px;color:#999;text-transform:uppercase;margin:.75rem 0 .4rem;display:flex;align-items:center;gap:6px}
+.pillar-label::after{content:'';flex:1;height:.5px;background:#EEE}
+.uc-block{border:1px solid #EEE;border-radius:6px;margin-bottom:4px;overflow:hidden}
+.uc-header{display:flex;align-items:center;gap:5px;padding:6px 8px;cursor:pointer;background:#FAFAFA;user-select:none}
+.uc-header:hover{background:#F2F2F2}
+.uc-name{flex:1;font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uc-bw{width:55px;height:4px;background:#EEE;border-radius:2px;overflow:hidden;flex-shrink:0}
+.uc-b{height:100%;border-radius:2px}
+.uc-pts{font-size:10px;font-weight:700;min-width:28px;text-align:right;flex-shrink:0}
+.chev{font-size:9px;color:#BBB;flex-shrink:0;transition:transform .15s;display:inline-block}
+.chev.open{transform:rotate(180deg)}
+.uc-body{display:none;padding:6px 8px 8px;border-top:.5px solid #EEE}
+.uc-body.open{display:block}
+.sig-sec-title{font-size:9px;font-weight:700;color:#AAA;text-transform:uppercase;letter-spacing:.4px;margin:4px 0 3px}
+.sig-row{display:flex;align-items:baseline;gap:3px;padding:2.5px 0;border-bottom:.5px solid #F8F8F8;font-size:11px}
+.sig-row:last-child{border-bottom:none}
+.sig-name{flex:1;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px}
+.sig-val{color:#999;font-size:9.5px;white-space:nowrap;flex-shrink:0}
+.sig-pts{font-size:10px;font-weight:700;min-width:30px;text-align:right;flex-shrink:0}
+.fired{color:#1A7F3C}.zero{color:#CCC}
+.badge{display:inline-block;font-size:8.5px;padding:0 4px;border-radius:6px;font-weight:600;margin-left:2px;vertical-align:1px}
+.bs{background:#FCE4EC;color:#AD1457}
+.bi{background:#E3F2FD;color:#1565C0}
+.bp{background:#E8F5E9;color:#2E7D32}
+.bc{background:#FFF8E1;color:#E65100}
+.bf{background:#EDE7F6;color:#4527A0}
+.bo{background:#E0F2F1;color:#00695C}
+
+/* Firmographic block */
+.firmo-block{background:#F9F6FF;border:1px solid #E8DFFF;border-radius:6px;padding:5px 8px;margin-top:5px}
+.firmo-title{font-size:9px;font-weight:700;color:#6B2E9E;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.firmo-block.ztn{background:#F0F8FF;border-color:#C8E6FF}
+.firmo-block.ztn .firmo-title{color:#0D6E94}
+
+/* Firmographic row */
+.frow{display:flex;gap:.85rem;flex-wrap:wrap;padding:.6rem 1rem;border-top:.5px solid #EEE;flex-shrink:0;font-size:11px}
+.fi .fl{color:#888;margin-right:3px}
+
+/* ── METHODOLOGY MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-start;justify-content:center;overflow-y:auto;padding:2vh 0}
+.overlay.open{display:flex}
+.modal{background:#FFF;border-radius:12px;width:min(920px,95vw);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-header{padding:.9rem 1.1rem;border-bottom:1px solid #EEE;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.modal-title{font-size:14px;font-weight:700}
+.modal-close{background:none;border:none;cursor:pointer;font-size:18px;color:#999}
+.modal-body{overflow-y:auto;padding:1rem 1.1rem}
+.m-section{margin-bottom:1.1rem}
+.m-h{font-size:13px;font-weight:700;margin-bottom:.4rem;padding-bottom:.3rem;border-bottom:1px solid #EEE;cursor:default}
+.m-h.collapsible{cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.m-h.collapsible:hover{opacity:.8}
+.m-chevron{font-size:11px;color:#AAA;transition:transform .2s;flex-shrink:0}
+.m-chevron.open{transform:rotate(180deg)}
+.m-collapsible-body{overflow:hidden;transition:max-height .2s ease}
+.m-h.ztw{color:#6B2E9E}.m-h.ztn{color:#0D6E94}
+.m-body{font-size:12px;color:#444;line-height:1.6}
+.m-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:.4rem;table-layout:auto}
+.m-table th{background:#F5F5F5;padding:6px 10px;text-align:left;font-weight:600;font-size:11px;color:#555;border-bottom:1px solid #EEE;white-space:nowrap}
+.m-table td{padding:5px 10px;border-bottom:.5px solid #F5F5F5;vertical-align:top;font-size:12px;line-height:1.5}
+.m-table tr:last-child td{border-bottom:none}
+.tier-row{display:flex;gap:8px;margin-top:.4rem}
+.tier-chip{flex:1;border-radius:6px;padding:.4rem .6rem;text-align:center;font-size:11px;font-weight:600}
+
+/* Distribution */
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+.dc{background:#FFF;border:.5px solid #E5E5E5;border-radius:8px;padding:.75rem}
+.dt{font-size:11px;font-weight:600;margin-bottom:.45rem}
+.dr{display:flex;align-items:center;gap:5px;margin-bottom:4px;font-size:11px}
+.dbw{flex:1;height:13px;background:#EEE;border-radius:2px;overflow:hidden}
+.db{height:100%;display:flex;align-items:center;padding-left:4px;font-size:10px;font-weight:600;color:#FFF}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">AVIATRIX</span>
+  <span class="htitle">× Orange Business Services · Propensity Scoring Model · NAM · v2.0</span>
+  <div style="display:flex;gap:6px;align-items:center">
+    <span id="session-status" style="font-size:11px;color:#666"></span>
+    <span id="dirty-indicator" style="display:none;font-size:10px;color:#E8560A" title="Unsaved changes"><span class="dirty-dot"></span>Unsaved</span>
+    <button class="hbtn" onclick="loadSessionFile()" id="btn-restore" title="Load a previously saved session file">↑ Load session</button>
+    <button class="hbtn" onclick="saveSession()" id="btn-save" style="display:none" title="Save current session to file">↓ Save session</button>
+    <button class="hbtn" onclick="saveSessionAs()" id="btn-save-as" style="display:none" title="Save with a custom name">Save as…</button>
+  </div>
+  <input type="file" id="file-input-session" accept=".json" style="display:none">
+</header>
+
+<div class="layout" id="layout">
+  <div class="main-col">
+
+    <div id="up">
+      <div id="file-log" style="margin-bottom:.75rem"></div>
+      <div class="upload-zone" id="dz" onclick="document.getElementById('file-input').click()">
+        <div style="font-size:22px;margin-bottom:.35rem">↑</div>
+        <strong style="font-size:14px;display:block;margin-bottom:3px">Drop any file here to get started</strong>
+        <p style="font-size:12px;color:#888">HG Enrichment file or AE interview workbook · file type detected automatically</p>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+      <input type="file" id="file-input-ob1p" accept=".xlsx,.xls,.csv">
+      <input type="file" id="file-input-zi" accept=".xlsx,.xls,.csv">
+      <input type="file" id="file-input-hgi" accept=".xlsx,.xls,.csv">
+      <input type="file" id="file-input-rep" accept=".xlsx,.xls,.csv,.json">
+      <div class="hint" style="margin-top:.5rem">Load HG Enrichment first to score accounts · AE workbooks can be added before or after in any order</div>
+    </div>
+
+    <div id="main-ui">
+      <div class="data-bar" id="data-bar">
+        <div class="dsrc active" id="src-hg" title="OB_Customers_HG_Enrichment_*.xlsx · sheets: Raw Data_Spend + Raw Data_Installs">
+          <span class="dsrc-icon" id="src-hg-icon">✓</span>
+          <div class="dsrc-body">
+            <div class="dsrc-label">② HG Fit Score</div>
+            <div class="dsrc-sub" id="src-hg-sub">Loading...</div>
+          </div>
+          <button class="dsrc-btn loaded" onclick="document.getElementById('file-input').click()" title="Replace HG Enrichment file">Replace</button>
+        </div>
+        <div class="dsrc pending" id="src-ob1p" title="Load one AE workbook at a time — each file adds to the pool. Reads Account Summary sheet, col B (account name) + col M (OB 1P Score).">
+          <span class="dsrc-icon" id="src-ob1p-icon">○</span>
+          <div class="dsrc-body">
+            <div class="dsrc-label">① OBS First-Party</div>
+            <div class="dsrc-sub" id="src-ob1p-sub">Not loaded · 30% weight · load AE workbooks one at a time</div>
+          </div>
+          <button class="dsrc-btn" id="btn-ob1p" onclick="document.getElementById('file-input-ob1p').click()" title="Load an AE interview workbook. Can load multiple — scores accumulate.">Add file</button>
+        </div>
+        <div class="dsrc pending" id="src-zi" title="CSV or Excel · columns: Account Name, ZoomInfo Intent Score (0–100)">
+          <span class="dsrc-icon" id="src-zi-icon">○</span>
+          <div class="dsrc-body">
+            <div class="dsrc-label">③ ZoomInfo Intent</div>
+            <div class="dsrc-sub" id="src-zi-sub">Not loaded · 20% weight</div>
+          </div>
+          <button class="dsrc-btn" id="btn-zi" onclick="document.getElementById('file-input-zi').click()" title="CSV/Excel: Account Name + ZoomInfo Intent Score (0–100)">Add file</button>
+        </div>
+        <div class="dsrc pending" id="src-hgi" title="CSV or Excel · columns: Account Name, HG Intent Score (0–100)">
+          <span class="dsrc-icon" id="src-hgi-icon">○</span>
+          <div class="dsrc-body">
+            <div class="dsrc-label">④ HG Intent</div>
+            <div class="dsrc-sub" id="src-hgi-sub">Not loaded · 15% weight</div>
+          </div>
+          <button class="dsrc-btn" id="btn-hgi" onclick="document.getElementById('file-input-hgi').click()" title="CSV/Excel: Account Name + HG Intent Score (0–100)">Add file</button>
+        </div>
+      </div>
+      <div id="status" class="status"></div>
+      <div class="metrics" id="met"></div>
+      <div class="tabs">
+        <button class="tab active" onclick="swTab('accts',event)">Account scores</button>
+        <button class="tab" onclick="swTab('rep',event)">Account Executive View</button>
+        <button class="tab" onclick="swTab('dist',event)">Distribution</button>
+        <button class="tab" onclick="swTab('key',event)">Scoring key</button>
+      </div>
+      <div id="taccts">
+        <div class="controls" style="flex-direction:column;align-items:stretch;gap:6px">
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="srch" placeholder="Search accounts or industry..." oninput="renderTbl()" style="flex:1;min-width:180px">
+
+            <button class="expbtn" onclick="doExport()">↓ Export CSV</button>
+          </div>
+          <div id="filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+            <span style="font-size:10px;color:#888;font-weight:600">Filter:</span>
+            <button class="fchip active" data-filter="all" data-group="src" onclick="resetAllFilters()" title="Reset all filters">All</button>
+            <button class="fchip" data-filter="inmarket" data-group="src" onclick="toggleChip(this,'src')">🟢 IN MARKET</button>
+            <button class="fchip" data-filter="qualify" data-group="src" onclick="toggleChip(this,'src')">🟡 QUALIFY</button>
+            <button class="fchip" data-filter="flagged" data-group="src" onclick="toggleChip(this,'src')">⚡ Flagged</button>
+            <button class="fchip" data-filter="ob1p" data-group="src" onclick="toggleChip(this,'src')">Has 1P</button>
+            <button class="fchip" data-filter="no_ob1p" data-group="src" onclick="toggleChip(this,'src')">No 1P</button>
+            <span style="font-size:10px;color:#CCC;margin:0 2px">|</span>
+            <span style="font-size:10px;color:#888;font-weight:600">Signal:</span>
+            <button class="fchip" data-filter="sigA" data-group="sig" onclick="toggleChip(this,'sig')" title="Signal A — act now">A</button>
+            <button class="fchip" data-filter="sigB" data-group="sig" onclick="toggleChip(this,'sig')" title="Signal B — validate">B</button>
+            <button class="fchip" data-filter="sigC" data-group="sig" onclick="toggleChip(this,'sig')" title="Signal C — weak">C</button>
+            <span style="font-size:10px;color:#CCC;margin:0 2px">|</span>
+            <span style="font-size:10px;color:#888;font-weight:600">ZTN:</span>
+            <button class="fchip" data-filter="ztnA" data-group="ztn" onclick="toggleChip(this,'ztn')" title="ZTN Tier A — strong fit">A</button>
+            <button class="fchip" data-filter="ztnB" data-group="ztn" onclick="toggleChip(this,'ztn')" title="ZTN Tier B — moderate fit">B</button>
+            <button class="fchip" data-filter="ztnC" data-group="ztn" onclick="toggleChip(this,'ztn')" title="ZTN Tier C — weak fit">C</button>
+          </div>
+        </div>
+        <table id="accounts-table">
+          <colgroup><col style="width:14%"><col style="width:10%"><col style="width:8%"><col style="width:5%"><col style="width:7%"><col style="width:4%"><col style="width:14%"><col style="width:7%"><col style="width:4%"><col style="width:19%"><col style="width:8%"></colgroup>
+          <thead><tr>
+            <th data-col="name" onclick="sortBy('name')" style="cursor:pointer" title="Account name — click to sort"><span>Account</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ind" onclick="sortBy('ind')" style="cursor:pointer" title="HG NAICS industry classification — click to sort"><span>Industry</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="lh" onclick="sortBy('lh')" style="cursor:pointer" title="Lighthouse score (0–100): weighted composite of all loaded data sources. Tier 1 ≥75, Tier 2 ≥55, Tier 3 ≥35, Tier 4 &lt;35. Click to sort."><span>Lighthouse</span><span class="sort-ind" style="opacity:1"> ▼</span></th>
+            <th data-col="sig" onclick="sortBy('sig')" style="cursor:pointer" title="Signal tier (A–D): urgency indicator independent of Lighthouse. Based on ZTN fit score, escalated by OBS First-Party strength and IN MARKET intent. A = act now, D = no signal. Click to sort."><span>Signal</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztn" onclick="sortBy('ztn')" style="cursor:pointer" title="ZTN score (0–100): fit for Zero Trust for Networking. Primary entry motion for OBS accounts. Driven by network infra spend, SD-WAN/VPN installs, cloud maturity, and intent topics. Click to sort."><span>ZTN score</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztn_ti" onclick="sortBy('ztn_ti')" style="cursor:pointer" title="ZTN tier: A ≥70, B ≥40, C &lt;40 — click to sort"><span>Tier</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztn_tp" onclick="sortBy('ztn_tp')" style="cursor:pointer" title="Highest-scoring ZTN use case — click to sort"><span>Top ZTN use case</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztw" onclick="sortBy('ztw')" style="cursor:pointer" title="ZTW score (0–100): fit for Zero Trust for Workloads. Secondary expansion motion — follow-on after ZTN foothold. Driven by security/DevSecOps spend and workload tool installs. Click to sort."><span>ZTW score</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztw_ti" onclick="sortBy('ztw_ti')" style="cursor:pointer" title="ZTW tier: A ≥70, B ≥40, C &lt;40 — click to sort"><span>Tier</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ztw_tp" onclick="sortBy('ztw_tp')" style="cursor:pointer" title="Highest-scoring ZTW use case — click to sort"><span>Top ZTW use case</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+            <th data-col="ae" onclick="sortBy('ae')" style="cursor:pointer" title="Account Executive — click to sort"><span>AE</span><span class="sort-ind" style="opacity:.25"> ▼</span></th>
+          </tr></thead>
+          <tbody id="tb"></tbody>
+        </table>
+      </div>
+      <div id="trep" style="display:none"><div id="rep-content"></div></div>
+      <div id="tdist" style="display:none"><div class="dg" id="dg"></div></div>
+      <div id="tkey" style="display:none" id="tkey"></div>
+    </div>
+
+  </div><!-- /main-col -->
+</div><!-- /layout -->
+
+<!-- Slide-in panel -->
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div style="flex:1;min-width:0">
+      <div class="panel-name" id="p-name">—</div>
+      <div class="panel-meta" id="p-meta">—</div>
+    </div>
+    <button class="panel-close" onclick="closePanel()" title="Close">✕</button>
+  </div>
+  <div class="panel-scores" id="p-scores"></div>
+  <div class="panel-body" id="p-body"></div>
+  <div class="frow" id="p-firmo"></div>
+</div>
+
+
+
+<div id="toast-el" class="toast"></div>
+
+<script>
+const ZW='#6B2E9E', ZN='#0D6E94';
+let accounts=[], selIdx=null;
+
+const SPEND={
+  ztw:{
+    'Prevent Lateral Movement':[
+      {c:'Security',label:'Hardware Security spend',h:10e6,m:1e6,p:[3,2,1]},
+      {c:'Cloud Services Total',label:'Cloud Services spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Identity and Access Management',label:'IAM spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Infrastructure-as-a-Service (IaaS)',label:'IaaS spend',h:50e6,m:10e6,p:[2,1,0]},
+    ],
+    'Block Data Exfiltration':[
+      {c:'Information and Threat Management',label:'Info & Threat Mgmt spend',h:10e6,m:1e6,p:[3,2,1]},
+      {c:'Managed Security Services',label:'Managed Security Services spend',h:50e6,m:10e6,p:[3,2,1]},
+      {c:'Cloud Services Total',label:'Cloud Services spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Security Total',label:'Security Total spend',h:10e6,m:1e6,p:[1,0,0]},
+    ],
+    'Accelerate Secure Dev Velocity':[
+      {c:'Application Development Software',label:'App Dev Software spend',h:50e6,m:10e6,p:[3,2,1]},
+      {c:'Application Development and Deployment Total',label:'App Dev & Deployment spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Platform-as-a-Service (PaaS)',label:'PaaS spend',h:50e6,m:10e6,p:[1,0,0]},
+    ],
+  },
+  ztn:{
+    'Unified Cloud Network Fabric':[
+      {c:'Network Infrastructure',label:'Network Infrastructure spend',h:50e6,m:10e6,p:[3,2,1]},
+      {c:'Infrastructure-as-a-Service (IaaS)',label:'IaaS spend',h:100e6,m:50e6,p:[3,2,1]},
+      {c:'Co-location Services',label:'Co-location spend',h:10e6,m:1e6,p:[2,1,0]},
+      {c:'Data Center Outsourcing',label:'Data Center Outsourcing spend',h:10e6,m:1e6,p:[1,0,0]},
+    ],
+    'Zero Trust Network Segmentation':[
+      {c:'Network Management',label:'Network Management spend',h:10e6,m:1e6,p:[3,2,1]},
+      {c:'Cloud Services Total',label:'Cloud Services spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Network Consulting',label:'Network Consulting spend',h:10e6,m:1e6,p:[1,0,0]},
+    ],
+    'Secure Third-Party & External Access':[
+      {c:'Unified Communications and Collaboration',label:'UC&C spend',h:10e6,m:1e6,p:[3,2,1]},
+      {c:'Network Services Total',label:'Network Services spend',h:50e6,m:10e6,p:[2,1,0]},
+      {c:'Identity and Access Management',label:'IAM spend',h:10e6,m:1e6,p:[1,0,0]},
+    ],
+    'Enforce E2E Network Encryption':[
+      {c:'Encryption and SSL Accelerators',label:'Encryption & SSL spend',h:10e6,m:1e6,p:[3,2,1]},
+      {c:'Business Continuity / Disaster Recovery',label:'BC/DR spend',h:50e6,m:10e6,p:[3,2,1]},
+      {c:'Co-location Services',label:'Co-location spend',h:10e6,m:1e6,p:[2,1,0]},
+      {c:'Cloud Services Total',label:'Cloud Services spend',h:10e6,m:1e6,p:[1,0,0]},
+    ],
+  }
+};
+
+const INS={
+  ztw:{
+    'Prevent Lateral Movement':[
+      {k:['VMware','VMware ESXi','VMware vCenter'],label:'VMware (workload platform)',t:'pi',pp:1,ip:1,it:1000},
+      {k:['CrowdStrike'],label:'CrowdStrike Falcon',t:'p',pp:1},
+      {k:['Microsoft Defender'],label:'Microsoft Defender',t:'pi',pp:1,ip:1,it:1000},
+      {k:['SentinelOne'],label:'SentinelOne (endpoint)',t:'p',pp:1},
+      {k:['Carbon Black','VMware Carbon Black'],label:'VMware Carbon Black',t:'p',pp:1},
+      {k:['Cisco XDR','Cisco Secure Endpoint'],label:'Cisco XDR / Secure Endpoint',t:'p',pp:1},
+      {k:['Illumio'],label:'Illumio (micro-seg incumbent)',t:'p',pp:1},
+      {k:['Guardicore','Akamai Guardicore'],label:'Guardicore micro-segmentation',t:'p',pp:1},
+      {k:['Cisco Secure Workload','Tetration'],label:'Cisco Secure Workload (Tetration)',t:'p',pp:1},
+      {k:['Wiz'],label:'Wiz (CNAPP)',t:'p',pp:1},
+      {k:['Prisma Cloud','Prisma Cloud Compute'],label:'Palo Alto Prisma Cloud',t:'p',pp:1},
+      {k:['Lacework'],label:'Lacework (CSPM/CWPP)',t:'p',pp:1},
+      {k:['Sysdig Secure','Sysdig'],label:'Sysdig Secure (container security)',t:'p',pp:1},
+      {k:['Orca Security'],label:'Orca Security (agentless CWPP)',t:'p',pp:1},
+      {k:['Workspace ONE'],label:'VMware Workspace ONE',t:'p',pp:1},
+      {cat:'Virtualisation',label:'Virtualisation category depth',t:'cat',pts:[2,1],th:3},
+      {cat:'Cloud Security',label:'Cloud Security category depth (CWPP/CNAPP)',t:'cat',pts:[2,1],th:2},
+    ],
+    'Block Data Exfiltration':[
+      {k:['McAfee','Trellix'],label:'McAfee / Trellix DLP',t:'pi',pp:1,ip:1,it:1000},
+      {k:['Microsoft Purview','Purview Information Protection'],label:'Microsoft Purview DLP',t:'p',pp:1},
+      {k:['IBM Guardium'],label:'IBM Guardium Data Protection',t:'p',pp:1},
+      {k:['Imperva'],label:'Imperva Data Security',t:'p',pp:1},
+      {k:['Palo Alto','PAN-OS'],label:'Palo Alto NGFW',t:'p',pp:1},
+      {k:['Fortinet','FortiGate','FortiOS'],label:'Fortinet FortiGate',t:'pi',pp:1,ip:1,it:300},
+      {k:['Trend Micro'],label:'Trend Micro',t:'pi',pp:1,ip:1,it:500},
+      {k:['Zscaler Internet Access','Zscaler Web'],label:'Zscaler Internet Access (cloud egress)',t:'p',pp:1},
+      {k:['Netskope'],label:'Netskope SWG / CASB (cloud egress)',t:'p',pp:1},
+      {k:['Cisco Web Security','Cisco Umbrella'],label:'Cisco Umbrella / Web Security',t:'p',pp:1},
+      {cat:'Content Filtering',label:'Content Filtering category depth',t:'cat',pts:[1,0],th:2},
+      {cat:'Web-based Threat Protection',label:'Web Threat Protection depth (cloud egress)',t:'cat',pts:[1,0],th:2},
+    ],
+    'Accelerate Secure Dev Velocity':[
+      {k:['Terraform','HashiCorp'],label:'Terraform / HashiCorp',t:'pi',pp:1,ip:1,it:500},
+      {k:['Pulumi'],label:'Pulumi (IaC)',t:'p',pp:1},
+      {k:['GitHub Enterprise'],label:'GitHub Enterprise',t:'pi',pp:1,ip:1,it:1000},
+      {k:['GitLab'],label:'GitLab',t:'p',pp:1},
+      {k:['Jenkins'],label:'Jenkins CI/CD',t:'p',pp:1},
+      {k:['Docker'],label:'Docker',t:'pi',pp:1,ip:1,it:500},
+      {k:['Snyk'],label:'Snyk (SCA/SAST)',t:'p',pp:1},
+      {k:['Checkmarx'],label:'Checkmarx (SAST/SCA)',t:'p',pp:1},
+      {k:['JFrog Xray','JFrog'],label:'JFrog Xray (artifact security)',t:'p',pp:1},
+      {k:['Sonatype','Nexus Lifecycle'],label:'Sonatype Lifecycle (SCA)',t:'p',pp:1},
+      {k:['Veracode'],label:'Veracode (AppSec)',t:'p',pp:1},
+      {k:['GitGuardian'],label:'GitGuardian (secrets detection)',t:'p',pp:1},
+      {k:['Aqua','Aqua Security'],label:'Aqua Security (container security)',t:'p',pp:1},
+      {cat:'Virtualisation',label:'Container / IaC category depth',t:'cat',pts:[2,1],th:3},
+      {cat:'DevSecOps',label:'DevSecOps category depth (SCA/SAST)',t:'cat',pts:[2,1],th:2},
+    ],
+  },
+  ztn:{
+    'Unified Cloud Network Fabric':[
+      {k:['Cisco SD-WAN','Cisco Meraki','Cisco Viptela','Viptela'],label:'Cisco SD-WAN / Meraki / Viptela',t:'pi',pp:1,ip:1,it:500},
+      {k:['Silver Peak','Aruba EdgeConnect'],label:'Silver Peak / Aruba EdgeConnect SD-WAN',t:'p',pp:1},
+      {k:['Citrix SD-WAN','Citrix Branch Repeater','Citrix CloudBridge'],label:'Citrix SD-WAN',t:'p',pp:1},
+      {k:['Versa','Versa Networks','Versa Secure'],label:'Versa Networks SD-WAN',t:'p',pp:1},
+      {k:['Aryaka'],label:'Aryaka SD-WAN',t:'p',pp:1},
+      {k:['Alkira'],label:'Alkira cloud networking',t:'p',pp:1},
+      {k:['Nuage Networks'],label:'Nokia Nuage Networks',t:'p',pp:1},
+      {k:['VMware SD-WAN','VeloCloud'],label:'VMware SD-WAN (VeloCloud)',t:'pi',pp:1,ip:1,it:500},
+      {k:['VMware NSX','VMware Cloud Foundation','VMware Aria'],label:'VMware NSX / Cloud Foundation',t:'pi',pp:1,ip:1,it:1000},
+      {k:['Megaport','Equinix Fabric','AWS Direct Connect','Azure ExpressRoute','Google Cloud Interconnect'],label:'Cloud interconnect (DC-to-cloud)',t:'p',pp:1},
+      {k:['Azure App','SQL Server on Azure','Amazon MWAA'],label:'Multi-cloud workload signal',t:'p',pp:1},
+      {cat:'Network Infrastructure',label:'Network Infra category depth',t:'cat',pts:[2,1],th:3},
+    ],
+    'Zero Trust Network Segmentation':[
+      {k:['Cisco Identity Services Engine','Cisco ISE'],label:'Cisco ISE (flat network signal)',t:'pi',pp:1,ip:1,it:500},
+      {k:['Forescout'],label:'Forescout NAC (flat network signal)',t:'pi',pp:1,ip:1,it:300},
+      {k:['Aruba ClearPass','ClearPass'],label:'Aruba ClearPass NAC',t:'p',pp:1},
+      {k:['Portnox'],label:'Portnox NAC',t:'p',pp:1},
+      {k:['Cisco Adaptive Security','Cisco ASA'],label:'Cisco ASA',t:'pi',pp:1,ip:1,it:300},
+      {k:['Check Point','CheckPoint'],label:'Check Point firewall',t:'pi',pp:1,ip:1,it:300},
+      {k:['Palo Alto','PAN-OS'],label:'Palo Alto PAN-OS',t:'pi',pp:1,ip:1,it:500},
+      {k:['VMware NSX'],label:'VMware NSX',t:'pi',pp:1,ip:1,it:500},
+      {k:['Illumio'],label:'Illumio micro-segmentation',t:'p',pp:1},
+      {k:['Guardicore','Akamai Guardicore'],label:'Guardicore micro-segmentation',t:'p',pp:1},
+      {cat:'Firewall Appliance',label:'Firewall Appliance category depth',t:'cat',pts:[2,1],th:3},
+    ],
+    'Secure Third-Party & External Access':[
+      {k:['Cisco AnyConnect'],label:'Cisco AnyConnect (legacy VPN)',t:'pi',pp:1,ip:2,it:1000},
+      {k:['GlobalProtect','Palo Alto GlobalProtect'],label:'Palo Alto GlobalProtect VPN',t:'p',pp:1},
+      {k:['Pulse Connect','Ivanti Connect','Ivanti'],label:'Ivanti / Pulse VPN',t:'p',pp:1},
+      {k:['Zscaler ZPA','Zscaler Private Access'],label:'Zscaler ZPA (ZTNA in-flight)',t:'p',pp:2},
+      {k:['Cloudflare Access','Cloudflare ZTNA'],label:'Cloudflare Access (ZTNA)',t:'p',pp:1},
+      {k:['Prisma Access','Palo Alto Prisma Access'],label:'Palo Alto Prisma Access (ZTNA)',t:'p',pp:1},
+      {k:['Cato Networks','Cato SASE'],label:'Cato Networks (SASE/ZTNA)',t:'p',pp:1},
+      {k:['Netskope Private Access'],label:'Netskope Private Access (ZTNA)',t:'p',pp:1},
+      {k:['AppGate'],label:'AppGate SDP (ZTNA)',t:'p',pp:1},
+      {k:['BeyondTrust'],label:'BeyondTrust PAM',t:'pi',pp:1,ip:1,it:300},
+      {k:['CyberArk PAS','CyberArk'],label:'CyberArk PAM',t:'p',pp:1},
+      {k:['Delinea'],label:'Delinea Server PAM',t:'p',pp:1},
+      {k:['Okta'],label:'Okta (IAM without ZTNA gap)',t:'p',pp:1},
+      {k:['Citrix Workspace','Citrix StoreFront'],label:'Citrix Workspace',t:'pi',pp:1,ip:1,it:500},
+      {cat:'Identity and Access Management',label:'IAM category depth',t:'cat',pts:[1,0],th:2},
+    ],
+    'Enforce E2E Network Encryption':[
+      {k:['HPE OneView','HPE Data','Hewlett Packard'],label:'HPE OneView / Data Mgmt',t:'pi',pp:1,ip:1,it:500},
+      {k:['F5 BIG-IP','F5 BIG'],label:'F5 BIG-IP (SSL offload)',t:'pi',pp:1,ip:1,it:500},
+      {k:['Cisco NX-OS','Cisco Catalyst'],label:'Cisco NX-OS / Catalyst',t:'pi',pp:1,ip:1,it:300},
+      {k:['Junos','Juniper'],label:'Juniper / Junos OS',t:'pi',pp:1,ip:1,it:500},
+      {k:['Thales Luna','Thales HSM','Luna HSM'],label:'Thales Luna HSM (encryption-at-rest gap)',t:'p',pp:1},
+      {k:['Entrust nShield','nShield'],label:'Entrust nShield HSM',t:'p',pp:1},
+      {k:['SafeNet','Thales SafeNet'],label:'SafeNet HSM / encryption',t:'p',pp:1},
+      {k:['WireGuard'],label:'WireGuard (IPSec alternative — in-transit)',t:'p',pp:1},
+      {k:['VMware'],label:'VMware (on-prem hybrid signal)',t:'op',pp:2},
+      {cat:'Encryption and SSL',label:'Encryption / SSL category depth',t:'cat',pts:[2,1],th:2},
+    ],
+  }
+};
+
+const W={ztw:{'Prevent Lateral Movement':.4,'Block Data Exfiltration':.35,'Accelerate Secure Dev Velocity':.25},ztn:{'Unified Cloud Network Fabric':.35,'Zero Trust Network Segmentation':.25,'Secure Third-Party & External Access':.2,'Enforce E2E Network Encryption':.2}};
+const MX={ztw:{'Prevent Lateral Movement':20,'Block Data Exfiltration':18,'Accelerate Secure Dev Velocity':18},ztn:{'Unified Cloud Network Fabric':18,'Zero Trust Network Segmentation':16,'Secure Third-Party & External Access':18,'Enforce E2E Network Encryption':18}};
+const FA=[
+  {v:['financial','banking','insurance'],label:'Financial Services industry',pts:5,p:'both'},
+  {v:['health','pharma','life sciences'],label:'Healthcare / Life Sciences industry',pts:5,p:'both'},
+  {v:['government','public sector','federal'],label:'Government / Public Sector industry',pts:4,p:'ztn'},
+  {v:['manufacturing','industrial','energy'],label:'Manufacturing / Energy industry',pts:3,p:'ztn'},
+  {v:['telecom','technology'],label:'Telecom / Technology industry',pts:3,p:'ztn'},
+  {v:['10,000','50,000','100,000','10000','50000'],label:'Large enterprise (10,000+ employees)',pts:3,p:'both'},
+  {v:['5,000','7,500','5000','7500'],label:'Mid-large enterprise (5,000+ employees)',pts:2,p:'both'},
+];
+
+function mkw(n,kws){if(!n)return false;const x=n.toLowerCase();return kws.some(k=>x.includes(k.toLowerCase()));}
+function fmt$(v){if(!v||v<1e5)return null;if(v>=1e9)return '$'+(v/1e9).toFixed(1)+'B';if(v>=1e6)return '$'+Math.round(v/1e6)+'M';return '$'+Math.round(v/1e3)+'K';}
+function spts(val,s){const v=parseFloat(val)||0;return v>=s.h?s.p[0]:v>=s.m?s.p[1]:v>=1e6?(s.p[2]||0):0;}
+
+// Recency multiplier based on Date Last Verified
+function recencyMult(dateStr){
+  if(!dateStr) return 0.9; // unknown = slight discount
+  try{
+    const d = new Date(dateStr);
+    const moAgo = (Date.now() - d.getTime()) / (1000*60*60*24*30.5);
+    if(moAgo <= 6)  return 1.0;
+    if(moAgo <= 12) return 0.9;
+    if(moAgo <= 18) return 0.8;
+    return 0.65;
+  } catch(e){ return 0.9; }
+}
+
+function scoreInst(insts,uc,pl){
+  const ss=INS[pl][uc];let pts=0;const detail=[];
+  for(const s of ss){
+    if(s.t==='p'){
+      // Simple presence — apply recency multiplier
+      const f=insts.find(i=>mkw(i.prod,s.k));
+      const rm = f ? recencyMult(f.dateVerified) : 1;
+      const p = f ? Math.round(s.pp * rm * 10)/10 : 0;
+      pts+=p;
+      detail.push({label:s.label,type:'install',prod:f?.prod||null,pts:p,maxPts:s.pp,recency:rm});
+    } else if(s.t==='pi'){
+      // Continuous intensity weighting: base_pts × (intensity/max_intensity) × recency
+      const f=insts.find(i=>mkw(i.prod,s.k));let p=0,note='';
+      if(f){
+        const intv = f.int || 0;
+        const rm = recencyMult(f.dateVerified);
+        const intRatio = Math.min(1, intv / s.it); // continuous 0–1
+        p = Math.round((s.pp + s.ip * intRatio) * rm * 10) / 10;
+        note = `intensity ${intv}/${s.it} (${Math.round(intRatio*100)}%) · recency ${Math.round(rm*100)}%`;
+      }
+      pts+=p;detail.push({label:s.label,type:'install+intensity',prod:f?.prod||null,intensity:f?.int||null,note,pts:p,maxPts:s.pp+s.ip});
+    } else if(s.t==='op'){
+      const f=insts.find(i=>mkw(i.prod,s.k)&&i.op);
+      const rm = f ? recencyMult(f.dateVerified) : 1;
+      const p = f ? Math.round(s.pp * rm * 10)/10 : 0;
+      pts+=p;
+      detail.push({label:s.label,type:'on-prem',prod:f?.prod||null,pts:p,maxPts:s.pp,recency:rm});
+    } else if(s.t==='cat'){
+      const cnt=insts.filter(i=>i.c2&&i.c2.toLowerCase().includes(s.cat.toLowerCase())).length;
+      const p=cnt>=s.th?s.pts[0]:cnt>=1?s.pts[1]:0;pts+=p;
+      detail.push({label:s.label,type:'category',catCount:cnt,threshold:s.th,pts:p,maxPts:s.pts[0]});
+    }
+  }
+  return{pts,detail};
+}
+
+// ── INTENT TOPIC MAP ─────────────────────────────────────────────────────────
+// Confirmed 11 topics from June 2026 HG export
+// Format: topic -> [{pl, uc, score, precision}]
+// precision: HIGH = specific buying motion, MEDIUM = directional, LOW = broad
+const INTENT_TOPICS = {
+  'Zero Trust Architecture':          [{pl:'ztn',uc:'Unified Cloud Network Fabric',score:90,p:'HIGH'},{pl:'ztn',uc:'Zero Trust Network Segmentation',score:90,p:'HIGH'}],
+  'Microsegmentation':                [{pl:'ztn',uc:'Zero Trust Network Segmentation',score:90,p:'HIGH'}],
+  'Kubernetes Security':              [{pl:'ztw',uc:'Prevent Lateral Movement',score:85,p:'HIGH'}],
+  'DevSecOps':                        [{pl:'ztw',uc:'Accelerate Secure Dev Velocity',score:85,p:'HIGH'}],
+  'GitHub Actions':                   [{pl:'ztw',uc:'Accelerate Secure Dev Velocity',score:75,p:'MEDIUM'}],
+  'Software Composition Analysis (SCA)':[{pl:'ztw',uc:'Accelerate Secure Dev Velocity',score:80,p:'HIGH'}],
+  'Open Policy Agent (OPA)':          [{pl:'ztw',uc:'Prevent Lateral Movement',score:80,p:'HIGH'}],
+  'AI In Production':                 [{pl:'ztn',uc:'Unified Cloud Network Fabric',score:80,p:'MEDIUM'}],
+  'Aws Bedrock':                      [{pl:'ztn',uc:'Unified Cloud Network Fabric',score:85,p:'HIGH'}],
+  'Amazon SageMaker':                 [{pl:'ztn',uc:'Unified Cloud Network Fabric',score:80,p:'MEDIUM'}],
+  'Ibm Watsonx.Governance':           [{pl:'ztw',uc:'Accelerate Secure Dev Velocity',score:70,p:'MEDIUM'}],
+};
+const INTENT_THRESHOLD = 40; // minimum signal strength to count
+const TECH_CONFIRM_THRESHOLD = 30; // minimum tech score for IN MARKET
+
+// ── LIGHTHOUSE COMPOSITE WEIGHTS ─────────────────────────────────────────────
+// Source ① OBS First-Party  ② HG Fit  ③ ZoomInfo Intent  ④ HG Intent
+// Weights shift as data layers become available. HG Fit carries 100% when
+// other sources are absent; weights rebalance automatically.
+const LH_WEIGHTS = {
+  ob1p:   { weight: 0.30, label: 'OBS First-Party Intelligence' },
+  hgFit:  { weight: 0.35, label: 'HG Insights Fit Score' },
+  ziIntent:{ weight: 0.20, label: 'ZoomInfo Intent Score' },
+  hgIntent:{ weight: 0.15, label: 'HG Insights Intent Score' },
+};
+// Tier thresholds for composite Lighthouse score
+function lhTier(sc){ return sc>=75?'1':sc>=55?'2':sc>=35?'3':'4'; }
+const LH_TIER_LABELS = {'1':'Priority — joint engagement now','2':'Qualify — identify weak signals','3':'Nurture — build access first','4':'Deprioritize — too many gaps'};
+const LH_TIER_COLORS = {'1':'#1A7F3C','2':'#0D6E94','3':'#B87000','4':'#A32D2D'};
+
+function scoreAcct(a){
+  const res={ztw:{},ztn:{},ztw_firmo:[],ztn_firmo:[]};
+  const ctx=(a.ind||'').toLowerCase()+' '+(a.emp||'').toLowerCase();
+
+  // ── Layer ②: HG Fit Score (ZTW + ZTN) ────────────────────────────────────
+  for(const pl of['ztw','ztn']){
+    let raw=0,mxR=0;
+    for(const[uc,ss] of Object.entries(SPEND[pl])){
+      let ucPts=0;const spendDetail=[];
+      for(const s of ss){const v=parseFloat(a.spend[s.c])||0;const p=spts(v,s);ucPts+=p;spendDetail.push({label:s.label,col:s.c,value:v,pts:p,maxPts:s.p[0],thH:s.h,thM:s.m});}
+      const ir=scoreInst(a.insts,uc,pl);ucPts+=ir.pts;
+      res[pl][uc]={pts:ucPts,max:MX[pl][uc],spendDetail,installDetail:ir.detail};
+      raw+=ucPts*W[pl][uc];mxR+=MX[pl][uc]*W[pl][uc];
+    }
+    let sc=mxR>0?Math.round((raw/mxR)*100):0;
+    const ff=[];
+    for(const f of FA){if(f.p!=='both'&&f.p!==pl)continue;if(f.v.some(v=>ctx.includes(v))){sc=Math.min(100,sc+f.pts);ff.push({label:f.label,pts:f.pts});}}
+    // Cloud maturity amplifiers (ZTN only — cloud depth = networking problem)
+    if(pl==='ztn' && a.cloudMat){
+      const cm = a.cloudMat;
+      if(cm.cloudPct >= 0.70){ sc=Math.min(100,sc+5); ff.push({label:'Cloud-native (70%+ cloud products)',pts:5}); }
+      else if(cm.cloudPct >= 0.50){ sc=Math.min(100,sc+3); ff.push({label:'Cloud-forward (50%+ cloud products)',pts:3}); }
+      if(cm.cloudProducts >= 100){ sc=Math.min(100,sc+3); ff.push({label:'Large cloud estate (100+ cloud products)',pts:3}); }
+      if(cm.delta >= 0.10){ sc=Math.min(100,sc+2); ff.push({label:'High cloud momentum (+10% delta)',pts:2}); }
+      const cspCount = [cm.aws>0,cm.azure>0,cm.gcp>0].filter(Boolean).length;
+      if(cspCount >= 2){ sc=Math.min(100,sc+3); ff.push({label:`Multi-cloud (${cspCount} CSPs detected)`,pts:3}); }
+    }
+    res[pl+'_sc']=Math.min(100,sc);
+    res[pl+'_ti']=sc>=70?'A':sc>=40?'B':'C';
+    res[pl+'_firmo']=ff;
+    res[pl+'_tp']=Object.entries(res[pl]).sort((a,b)=>b[1].pts-a[1].pts)[0]?.[0]||'—';
+  }
+
+  // ── Layer ②: HG Fit Score ────────────────────────────────────────────────
+  // ZTN is the primary entry motion for OBS (connectivity → networking).
+  // HG Fit = ZTN score directly. ZTW is an expansion indicator only —
+  // it should never drag down an account with strong ZTN fit.
+  const hgFitScore = Math.min(100, res.ztn_sc);
+
+  // ── Intent scoring per use case ──────────────────────────────────────────
+  // For each use case, find MAX intent signal strength × topic score
+  // IN MARKET: intent ≥ 40 AND tech score ≥ 30
+  // QUALIFY: intent ≥ 40 but tech < 30
+  const intentByUC = {}; // uc -> {score, topic, strength, precision, journey, badge}
+  if(a.intentTopics && a.intentTopics.length > 0){
+    for(const it of a.intentTopics){
+      if(it.strength < INTENT_THRESHOLD) continue;
+      const mappings = INTENT_TOPICS[it.topic] || [];
+      for(const m of mappings){
+        const key = m.pl + '|' + m.uc;
+        const intentScore = Math.round(m.score * (it.strength / 100));
+        if(!intentByUC[key] || intentScore > intentByUC[key].score){
+          const techScore = res[m.pl][m.uc]?.pts || 0;
+          const techMax   = (m.pl==='ztn'?MX.ztn:MX.ztw)[m.uc] || 1;
+          const techPct   = Math.round((techScore/techMax)*100);
+          const badge = intentScore >= INTENT_THRESHOLD && techPct >= TECH_CONFIRM_THRESHOLD ? 'IN MARKET'
+                      : intentScore >= INTENT_THRESHOLD ? 'QUALIFY' : null;
+          intentByUC[key] = {score:intentScore, topic:it.topic, strength:it.strength,
+                             precision:m.p, journey:it.journey, badge, techPct};
+        }
+      }
+    }
+  }
+  res.intentByUC = intentByUC;
+
+  // Compute per-pillar intent score (MAX across use cases for that pillar)
+  const ztnIntentScore = Math.max(0, ...Object.entries(intentByUC)
+    .filter(([k])=>k.startsWith('ztn')).map(([,v])=>v.score));
+  const ztwIntentScore = Math.max(0, ...Object.entries(intentByUC)
+    .filter(([k])=>k.startsWith('ztw')).map(([,v])=>v.score));
+  const combinedIntentScore = Math.max(ztnIntentScore, ztwIntentScore) || null;
+
+  // ── Layer ①: OBS First-Party Intelligence (optional) ──────────────────────
+  const ob1pScore = a.ob1p_score != null ? parseFloat(a.ob1p_score) : null;
+
+  // ── Layer ③: ZoomInfo Intent Score (optional) ─────────────────────────────
+  const ziScore = a.zi_intent_score != null ? parseFloat(a.zi_intent_score) : null;
+
+  // ── Layer ④: HG Intent Score — from HG Intent sheet topics OR manual upload ─
+  // If HG intent topics were parsed from the file, use the combined score
+  // Otherwise fall back to manually uploaded hg_intent_score
+  const hgIntentScore = combinedIntentScore != null ? combinedIntentScore
+                      : (a.hg_intent_score != null ? parseFloat(a.hg_intent_score) : null);
+
+  // ── Composite Lighthouse Score ─────────────────────────────────────────────
+  // Only sum weights for available sources; renormalize to 100
+  const sources = [
+    { key:'ob1p',    score: ob1pScore,    ...LH_WEIGHTS.ob1p },
+    { key:'hgFit',   score: hgFitScore,   ...LH_WEIGHTS.hgFit },
+    { key:'ziIntent',score: ziScore,      ...LH_WEIGHTS.ziIntent },
+    { key:'hgIntent',score: hgIntentScore,...LH_WEIGHTS.hgIntent },
+  ];
+  const available = sources.filter(s => s.score != null);
+  const totalWeight = available.reduce((s,x) => s + x.weight, 0);
+  const lhRaw = available.reduce((s,x) => s + (x.score * x.weight), 0);
+  const lhScore = totalWeight > 0 ? Math.min(100, Math.round(lhRaw / totalWeight)) : hgFitScore;
+  const dataCompleteness = Math.round((available.length / sources.length) * 100);
+
+  res.hgFit_sc    = hgFitScore;
+  res.ob1p_sc     = ob1pScore;
+  res.zi_sc       = ziScore;
+  res.hgIntent_sc = hgIntentScore;
+  res.lh_sc       = lhScore;
+  res.lh_tier     = lhTier(lhScore);
+  res.lh_sources  = sources;
+  res.lh_available= available.length;
+  res.data_pct    = dataCompleteness;
+
+  // Signal gap flag: strong OB access but weak HG fit — needs manual discovery
+  // Fires when OB 1P >= 55 (Tier 2+) AND HG Fit < 25
+  // Also flag: strong HG fit but no OB 1P loaded — fit-rich, access-unknown
+  res.flag_access_rich  = (ob1pScore != null && ob1pScore >= 55 && hgFitScore < 25);
+  res.flag_fit_rich     = (ob1pScore == null && hgFitScore >= 60);
+  res.flag_misaligned   = res.flag_access_rich || res.flag_fit_rich;
+  res.flag_type         = res.flag_access_rich ? 'access-rich'
+                        : res.flag_fit_rich    ? 'fit-rich'
+                        : null;
+
+  // ── Signal Tier (A/B/C/D) — urgency, independent of Lighthouse ──────────
+  let signalBase = hgFitScore >= 70 ? 'A' : hgFitScore >= 45 ? 'B' : hgFitScore >= 20 ? 'C' : 'D';
+  // Escalate when OBS 1P is strong
+  if(ob1pScore != null && ob1pScore >= 75 && signalBase === 'B') signalBase = 'A';
+  if(ob1pScore != null && ob1pScore >= 75 && signalBase === 'C') signalBase = 'B';
+  // Escalate when intent fires IN MARKET
+  const hasInMarket = Object.values(intentByUC).some(v=>v.badge==='IN MARKET');
+  if(hasInMarket && signalBase === 'B') signalBase = 'A';
+  if(hasInMarket && signalBase === 'C') signalBase = 'B';
+  // Dual source: ZI intent ≥40 AND HG intent ≥40 = hard escalate to A
+  const dualSource = (ziScore != null && ziScore >= INTENT_THRESHOLD &&
+                      combinedIntentScore != null && combinedIntentScore >= INTENT_THRESHOLD);
+  res.signal = dualSource ? 'A' : signalBase;
+  res.signal_dual = dualSource;
+  res.hasInMarket = hasInMarket;
+  res.hasQualify  = Object.values(intentByUC).some(v=>v.badge==='QUALIFY');
+
+  // ── Lead use case: top ZTN by default, re-evaluate if escalated by 1P ───
+  // ZTN leads for OBS; ZTW is expansion only
+  res.lead_uc  = res.ztn_tp;
+  res.lead_pl  = 'ztn';
+
+  // ── Score confidence: how many signals fired vs evaluated ────────────────
+  const allSignals = Object.values(res.ztn).flatMap(uc => [...uc.spendDetail, ...uc.installDetail]);
+  const firedSignals = allSignals.filter(s => s.pts > 0).length;
+  res.confidence_fired = firedSignals;
+  res.confidence_total = allSignals.length;
+  res.confidence_pct   = allSignals.length > 0 ? Math.round((firedSignals / allSignals.length) * 100) : 0;
+
+  return res;
+}
+
+// Raw account base data — kept so re-scoring works when new files are added
+let rawAccounts = [];
+let repMap = {}; // account name -> {rep, territory}
+const MODEL_VERSION = '2.0';
+let changeLog = [];       // [{ts, action, detail}]
+let lastSavedPayload = null; // for dirty state detection
+let sessionName = null;   // named session
+let ob1pMap       = {};  // account name -> ob1p_score (0-100)
+let ob1pDetailMap = {};  // account name -> {score, tier}
+let ziMap    = {};  // account name -> zi_intent_score (0-100)
+let hgiMap   = {};  // account name -> hg_intent_score (0-100)
+
+function rescoreAll(){
+  accounts = rawAccounts.map(a => {
+    const ob1p = ob1pMap[a.name] ?? ob1pMap[a.name_norm] ?? ob1pMap[fuzzyName(a.name)] ?? null;
+    const ob1pDetail = ob1pDetailMap[a.name] ?? ob1pDetailMap[a.name_norm] ?? ob1pDetailMap[fuzzyName(a.name)] ?? null;
+    const zi   = ziMap[a.name]  ?? ziMap[a.name_norm]  ?? ziMap[fuzzyName(a.name)]  ?? null;
+    const hgi  = hgiMap[a.name] ?? hgiMap[a.name_norm] ?? hgiMap[fuzzyName(a.name)] ?? null;
+    const enriched = {...a, ob1p_score: ob1p, ob1p_detail: ob1pDetail, zi_intent_score: zi, hg_intent_score: hgi};
+    return {...enriched, ...scoreAcct(enriched)};
+  });
+  renderMet();renderTbl();renderDist();
+  if(selIdx!==null && accounts[selIdx]) openPanel(accounts[selIdx]);
+}
+
+// Filter chip state — true multi-select using Sets
+const activeFilters = {src: new Set(), sig: new Set(), ztn: new Set()};
+const activeRepFilters = new Set(); // persists across renderRep() calls
+let sortState = {col:'lh', dir:'desc'};
+
+function toggleChipByVal(val, group){
+  const chip = document.querySelector('.fchip[data-filter="'+val+'"][data-group="'+group+'"]');
+  if(chip) toggleChip(chip, group);
+}
+
+function resetAllFilters(){
+  ['src','sig','ztn'].forEach(g=>{
+    activeFilters[g].clear();
+    document.querySelectorAll('.fchip[data-group="'+g+'"]').forEach(c=>{
+      c.classList.toggle('active', c.dataset.filter==='all');
+    });
+  });
+  renderTbl();
+}
+
+function toggleChip(el, group){
+  const val = el.dataset.filter;
+  if(val === 'all'){
+    resetAllFilters();
+    return;
+  }
+  if(activeFilters[group].has(val)){
+    activeFilters[group].delete(val);
+  } else {
+    activeFilters[group].add(val);
+  }
+  const allChip = document.querySelector('.fchip[data-group="'+group+'"][data-filter="all"]');
+  if(allChip) allChip.classList.toggle('active', activeFilters[group].size === 0);
+  el.classList.toggle('active', activeFilters[group].has(val));
+  renderTbl();
+}
+
+function sortBy(col){
+  if(sortState.col === col){
+    sortState.dir = sortState.dir === 'desc' ? 'asc' : 'desc';
+  } else {
+    sortState.col = col;
+    sortState.dir = 'desc';
+  }
+  updateSortHeaders();
+  renderTbl();
+}
+
+function updateSortHeaders(){
+  document.querySelectorAll('thead th[data-col]').forEach(th=>{
+    const ind = th.querySelector('.sort-ind');
+    if(!ind) return;
+    if(th.dataset.col === sortState.col){
+      ind.textContent = sortState.dir === 'desc' ? ' ▼' : ' ▲';
+      ind.style.opacity = '1';
+    } else {
+      ind.textContent = ' ▼';
+      ind.style.opacity = '0.25';
+    }
+  });
+}
+
+function normName(n){ return String(n||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function fuzzyName(n){
+  // Strip legal suffixes and punctuation for matching across data sources
+  return String(n||'').toLowerCase()
+    .replace(/[,\.]/g,' ')
+    .replace(/(inc|llc|ltd|corp|co|plc|gmbh|sa|nv|ag|the|and|&)/gi,' ')
+    .replace(/[^a-z0-9]/g,'')
+    .trim();
+}
+function nameMatch(a, b){
+  if(!a||!b) return false;
+  return normName(a)===normName(b) || fuzzyName(a)===fuzzyName(b);
+}
+
+// Track loaded files per source so we can show counts and support additive loading
+const loadedFiles = { ob1p: [], zi: [], hgi: [] };
+
+function updateOb1pBar(matched, total){
+  const src=document.getElementById('src-ob1p');
+  if(!src) return;
+  src.classList.remove('pending');src.classList.add('active');
+  const icon=document.getElementById('src-ob1p-icon');
+  if(icon) icon.textContent='✓';
+  const sub=document.getElementById('src-ob1p-sub');
+  if(sub) sub.textContent=`${matched}/${total} accounts · ${loadedFiles.ob1p.length} file${loadedFiles.ob1p.length>1?'s':''} loaded`;
+  const btn=document.getElementById('btn-ob1p');
+  if(btn){btn.classList.add('loaded');btn.textContent='Add more';}
+}
+
+function renderMet(){
+  const t1=accounts.filter(a=>a.lh_tier==='1').length;
+  const t2=accounts.filter(a=>a.lh_tier==='2').length;
+  const flagged=accounts.filter(a=>a.flag_misaligned).length;
+
+  document.getElementById('met').innerHTML=`
+    <div class="metric"><div class="metric-val">${accounts.length}</div><div class="metric-lbl">Accounts scored</div></div>
+    <div class="metric"><div class="metric-val" style="color:#1A7F3C">${t1}</div><div class="metric-lbl">Lighthouse Tier 1</div></div>
+    <div class="metric"><div class="metric-val" style="color:#0D6E94">${t2}</div><div class="metric-lbl">Lighthouse Tier 2</div></div>
+    <div class="metric" style="cursor:pointer" onclick="toggleChipByVal('flagged','src')" title="Click to filter flagged accounts">
+      <div class="metric-val" style="color:#E65100">${flagged}</div>
+      <div class="metric-lbl">Flagged · needs review</div>
+    </div>`;
+}
+
+function getFilt(){
+  const q=(document.getElementById('srch')?.value||'').toLowerCase();
+  const s=document.getElementById('srt')?.value||'lh';
+  const {src, sig, ztn} = activeFilters;
+  let res=accounts.filter(a=>{
+    if(q&&!a.name.toLowerCase().includes(q)&&!a.ind.toLowerCase().includes(q))return false;
+    // Source filters — account must match ALL active source filters
+    if(src.size > 0){
+      const pass = [...src].every(f=>{
+        if(f==='ob1p')    return a.ob1p_score != null;
+        if(f==='no_ob1p') return a.ob1p_score == null;
+        if(f==='flagged') return a.flag_misaligned;
+        if(f==='inmarket')return a.hasInMarket;
+        if(f==='qualify') return a.hasQualify;
+        return true;
+      });
+      if(!pass) return false;
+    }
+    // Signal tier filter — account must match ANY active signal filter
+    if(sig.size > 0){
+      const sigVal = a.signal || 'D';
+      if(!sig.has('sig'+sigVal)) return false;
+    }
+    // ZTN tier filter — account must match ANY active ZTN filter
+    if(ztn.size > 0){
+      if(!ztn.has('ztn'+a.ztn_ti)) return false;
+    }
+    return true;
+  });
+  const {col, dir} = sortState;
+  const mul = dir === 'asc' ? 1 : -1;
+  res.sort((a,b)=>{
+    if(col==='name')   return mul * a.name.localeCompare(b.name);
+    if(col==='ind')    return mul * (a.ind||'').localeCompare(b.ind||'');
+    if(col==='ztn')    return mul * (a.ztn_sc - b.ztn_sc);
+    if(col==='ztw')    return mul * (a.ztw_sc - b.ztw_sc);
+    if(col==='sig')    return mul * ((a.signal||'D').localeCompare(b.signal||'D'));
+    if(col==='ztn_ti') return mul * ((a.ztn_ti||'C').localeCompare(b.ztn_ti||'C'));
+    if(col==='ztw_ti') return mul * ((a.ztw_ti||'C').localeCompare(b.ztw_ti||'C'));
+    if(col==='ztn_tp') return mul * ((a.ztn_tp||'').localeCompare(b.ztn_tp||''));
+    if(col==='ztw_tp') return mul * ((a.ztw_tp||'').localeCompare(b.ztw_tp||''));
+    if(col==='ae'){
+      const ae_a = (repMap[a.name]||repMap[normName(a.name)])?.rep||(a.ob1p_detail?.ae||'');
+      const ae_b = (repMap[b.name]||repMap[normName(b.name)])?.rep||(b.ob1p_detail?.ae||'');
+      return mul * ae_a.localeCompare(ae_b);
+    }
+    return mul * (a.lh_sc - b.lh_sc); // default: lh
+  });
+  return res;
+}
+
+function renderTbl(){
+  const rows=getFilt(),tb=document.getElementById('tb');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;color:#999">No accounts match</td></tr>';return;}
+  tb.innerHTML=rows.map(a=>{
+    const gi=accounts.indexOf(a),sel=selIdx===gi?'sel':'';
+    const lhC=LH_TIER_COLORS[a.lh_tier];
+    const incomplete=a.lh_available<4?`<span style="font-size:9px;color:#AAA;margin-left:3px">${a.lh_available}/4 sources</span>`:'';
+    const flagIcon = a.flag_access_rich ? ' ⚡' : a.flag_fit_rich ? ' 📡' : '';
+    return`<tr class="${sel}" onclick="selAcct(${gi})">
+      <td title="${a.name}" style="font-weight:600">${a.name}</td>
+      <td title="${a.ind}" style="color:#666;font-size:11px">${a.ind||'—'}</td>
+      <td style="white-space:nowrap">
+        <span style="font-size:13px;font-weight:700;color:${lhC}">${a.lh_sc}</span>${incomplete}<span style="font-size:10px" title="${a.flag_access_rich?'Access-rich · validate fit':a.flag_fit_rich?'Fit-rich · get access':''}">${flagIcon}</span>
+        <br><span style="font-size:9px;color:${lhC}">T${a.lh_tier}</span>
+      </td>
+      <td><span class="pill p${(a.signal||'D').toLowerCase()}" title="${a.signal_dual?'⚡ Dual-source escalate':''}">${a.signal||'D'}${a.signal_dual?'⚡':''}</span></td>
+      <td><div class="sb"><div class="sbar" style="width:${a.ztn_sc}px;background:${ZN}"></div><span class="snum" style="color:${ZN}">${a.ztn_sc}</span>${(()=>{const cm=a.cloudMat,ff=a.ztn_firmo||[];const multi=ff.find(f=>f.label&&f.label.includes('Multi-cloud'));const native=ff.find(f=>f.label&&f.label.includes('Cloud-native'));const fwd=ff.find(f=>f.label&&f.label.includes('Cloud-forward'));const tag=multi?'<span style="font-size:9px;color:#0D6E94;margin-left:4px;font-weight:600" title="Multi-cloud CSPs detected">MC</span>':native?'<span style="font-size:9px;color:#1A7F3C;margin-left:4px;font-weight:600" title="Cloud-native (70%+ cloud)">CN</span>':fwd?'<span style="font-size:9px;color:#5C8A9A;margin-left:4px;font-weight:600" title="Cloud-forward (50%+ cloud)">CF</span>':'';return tag;})()}</div></td>
+      <td><span class="pill p${a.ztn_ti.toLowerCase()}">${a.ztn_ti}</span></td>
+      <td title="${a.ztn_tp}" style="color:${ZN};font-size:10px;font-weight:500">${a.ztn_tp||'—'}</td>
+      <td><div class="sb"><div class="sbar" style="width:${a.ztw_sc}px;background:${ZW}"></div><span class="snum" style="color:${ZW}">${a.ztw_sc}</span></div></td>
+      <td><span class="pill p${a.ztw_ti.toLowerCase()}">${a.ztw_ti}</span></td>
+      <td title="${a.ztw_tp}" style="color:#AAA;font-size:10px">${a.ztw_tp||'—'}</td>
+      <td style="font-size:10px;color:#666">${(repMap[a.name]||repMap[normName(a.name)])?.rep||(a.ob1p_detail?.ae||'—')}</td>
+    </tr>`;
+  }).join('');
+  initResizableCols();
+}
+
+function selAcct(idx){
+  if(selIdx===idx){closePanel();return;}
+  selIdx=idx;
+  renderTbl();
+  openPanel(accounts[idx]);
+}
+
+function closePanel(){
+  selIdx=null;
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('layout').classList.remove('panel-open');
+  renderTbl();
+}
+
+function openPanel(a){
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('layout').classList.add('panel-open');
+  document.getElementById('p-name').textContent=a.name;
+  document.getElementById('p-meta').textContent=[a.ind,a.emp?a.emp+' employees':'',a.cty,a.itb?'IT budget $'+Math.round(a.itb/1e6)+'M':''].filter(Boolean).join(' · ');
+  const lhC=LH_TIER_COLORS[a.lh_tier];
+  const srcTags=(a.lh_sources||[]).map(s=>`<span class="lh-src ${s.score!=null?'src-active':'src-missing'}">${s.score!=null?'✓':''} ${s.label}</span>`).join('');
+  document.getElementById('p-scores').innerHTML=`
+    <div class="lh-banner" style="background:${lhC}18;border:1px solid ${lhC}44">
+      <div>
+        <div class="lh-label" style="color:${lhC}">LIGHTHOUSE SCORE · TIER ${a.lh_tier}</div>
+        <div class="lh-tier-label" style="color:${lhC}">${LH_TIER_LABELS[a.lh_tier]}</div>
+        ${a.flag_access_rich?`<div style="margin-top:5px"><span class="flag-badge flag-access">⚡ Access-rich · fit unknown — needs discovery call</span></div>`:''}
+        ${a.flag_fit_rich?`<div style="margin-top:5px"><span class="flag-badge flag-fit">📡 Fit-rich · access unknown — prioritize intro</span></div>`:''}
+      </div>
+      <div style="text-align:right">
+        <div class="lh-score" style="color:${lhC}">${a.lh_sc}</div>
+        <div style="font-size:9px;color:#AAA">${a.lh_available}/4 data sources</div>
+      </div>
+    </div>
+    <div class="lh-sources">${srcTags}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:5px;font-size:10px;color:#888">
+      <span>Signal confidence:</span>
+      <div style="flex:1;height:5px;background:#EEE;border-radius:3px;overflow:hidden">
+        <div style="width:${a.confidence_pct||0}%;height:100%;background:${(a.confidence_pct||0)>=50?'#1A7F3C':'#B87000'};border-radius:3px"></div>
+      </div>
+      <span style="font-weight:600;color:${(a.confidence_pct||0)>=50?'#1A7F3C':'#B87000'}">${a.confidence_fired||0}/${a.confidence_total||0} signals fired</span>
+    </div>
+    <div class="score-pair">
+      <div class="pscore-card ztw">
+        <div class="pscore-label"><span><span class="pill pztw" style="margin-right:3px">ZTW</span>Workloads</span><span class="pill p${a.ztw_ti.toLowerCase()}">${a.ztw_ti}</span></div>
+        <div class="pscore-num ps-ztw">${a.ztw_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
+      </div>
+      <div class="pscore-card ztn">
+        <div class="pscore-label"><span><span class="pill pztn" style="margin-right:3px">ZTN</span>Networking</span><span class="pill p${a.ztn_ti.toLowerCase()}">${a.ztn_ti}</span></div>
+        <div class="pscore-num ps-ztn">${a.ztn_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
+      </div>
+    </div>`;
+  document.getElementById('p-body').innerHTML=ob1pSection(a)+intentSection(a)+cloudMatSection(a)+ucSections(a,'ztn',ZN)+ucSections(a,'ztw',ZW);
+  document.getElementById('p-firmo').innerHTML=`
+    <span class="fi"><span class="fl">Products installed</span>${(a.insts||[]).length}</span>
+    <span class="fi"><span class="fl">Revenue</span>${a.rev||'—'}</span>
+    <span class="fi"><span class="fl">Country</span>${a.cty||'—'}</span>`;
+}
+
+function ob1pSection(a){
+  const d = a.ob1p_detail;
+  if(!d){
+    return`<div style="margin:.6rem 0;padding:.65rem .9rem;background:#F9F9F9;border-radius:6px;border:1px solid #EEE;font-size:11px;color:#AAA">
+      <span style="font-weight:600;color:#CCC">① OBS First-Party Intelligence</span> — not loaded for this account
+    </div>`;
+  }
+  const tierColors={'Tier 1 — Priority':'#1A7F3C','Tier 2 — Qualify':'#0D6E94','Tier 3 — Nurture':'#B87000','Tier 4 — Deprioritize':'#A32D2D'};
+  const tc = tierColors[d.tier]||'#555';
+  return`<div style="margin:.6rem 0;border:1px solid #E5E5E5;border-left:3px solid #E8560A;border-radius:6px;overflow:hidden">
+    <div style="background:#FFF8F5;padding:.55rem .85rem;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:10px;font-weight:700;color:#E8560A;letter-spacing:.3px">① OBS FIRST-PARTY INTELLIGENCE</span>
+      <span style="font-size:10px;color:#888">${d.ae||''}</span>
+    </div>
+    <div style="padding:.6rem .85rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #F0F0F0">
+      <div>
+        <div style="font-size:22px;font-weight:700;color:#E8560A">${d.score}<span style="font-size:12px;font-weight:400;color:#AAA">/100</span></div>
+        <div style="font-size:10px;color:${tc};font-weight:600;margin-top:1px">${d.tier}</div>
+      </div>
+      <div style="font-size:11px;color:#888;text-align:right">
+        Based on Q1–Q7<br>AE interview responses
+      </div>
+    </div>
+    <div style="padding:.5rem .85rem;background:#FFF">
+      <div style="font-size:9px;font-weight:700;color:#AAA;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.35rem">What drives this score</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;font-size:10.5px;color:#555">
+        <span>Q1 Buying center</span>
+        <span>Q2 Cloud platform access</span>
+        <span>Q3 Security buyer access</span>
+        <span>Q4 Advisor status</span>
+        <span>Q5 Live initiative</span>
+        <span>Q6 Purchase control</span>
+        <span style="grid-column:1/-1">Q7 Incumbent vendor</span>
+      </div>
+      <div style="font-size:10px;color:#AAA;margin-top:.4rem">Individual Q answers available in AE workbook</div>
+    </div>
+  </div>`;
+}
+
+
+function intentSection(a){
+  const byUC = a.intentByUC || {};
+  const topics = Object.entries(byUC);
+  if(!topics.length && !(a.intentTopics && a.intentTopics.length)){
+    return '<div style="margin:.6rem 0;padding:.55rem .85rem;background:#F9F9F9;border-radius:6px;border:1px solid #EEE;font-size:11px;color:#AAA"><span style="font-weight:600;color:#CCC">Intent signals</span> — no HG intent topics detected for this account</div>';
+  }
+  // All fired topics (from intentByUC)
+  const firedRows = topics.map(([key, d])=>{
+    const [pl, uc] = key.split('|');
+    const badgeHtml = d.badge === 'IN MARKET'
+      ? '<span style="background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px">IN MARKET</span>'
+      : d.badge === 'QUALIFY'
+      ? '<span style="background:#FFF8E1;color:#E65100;border:1px solid #FFE082;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px">QUALIFY</span>'
+      : '<span style="background:#F5F5F5;color:#AAA;font-size:9px;padding:1px 6px;border-radius:8px">below threshold</span>';
+    const plLabel = pl === 'ztn' ? '<span style="background:#E0F4FF;color:#0B4F6C;font-size:9px;padding:1px 5px;border-radius:4px">ZTN</span>' : '<span style="background:#F3E8FF;color:#4A235A;font-size:9px;padding:1px 5px;border-radius:4px">ZTW</span>';
+    return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:.5px solid #F5F5F5;font-size:11px">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + d.topic + '</div>'
+      + '<div style="font-size:10px;color:#888;margin-top:1px">' + (d.journey||'') + ' · ' + d.precision + ' precision · maps to ' + uc + '</div>'
+      + '</div>'
+      + '<div style="display:flex;gap:4px;align-items:center;flex-shrink:0">'
+      + plLabel
+      + '<span style="font-size:11px;font-weight:700;color:#555;min-width:28px;text-align:right">' + d.strength + '</span>'
+      + badgeHtml
+      + '</div>'
+      + '</div>';
+  }).join('');
+  // All raw topics (even those below threshold or unmapped)
+  const rawTopics = (a.intentTopics||[]).filter(t=>!topics.some(([,d])=>d.topic===t.topic));
+  const rawRows = rawTopics.map(t=>'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:10px;color:#AAA;border-bottom:.5px solid #F8F8F8">'
+    + '<span>' + t.topic + ' · ' + (t.journey||'') + '</span>'
+    + '<span>strength ' + t.strength + ' · not mapped</span>'
+    + '</div>').join('');
+  return '<div style="margin:.6rem 0;border:1px solid #E5E5E5;border-left:3px solid #2196F3;border-radius:6px;overflow:hidden">'
+    + '<div style="background:#F0F8FF;padding:.55rem .85rem;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="font-size:10px;font-weight:700;color:#0D47A1;letter-spacing:.3px">HG INTENT SIGNALS</span>'
+    + '<span style="font-size:10px;color:#888">' + topics.length + ' mapped · ' + (a.intentTopics||[]).length + ' total topics</span>'
+    + '</div>'
+    + '<div style="padding:.5rem .85rem">'
+    + (firedRows || '<div style="font-size:11px;color:#AAA;padding:4px 0">No topics above threshold (' + (40) + ')</div>')
+    + (rawRows ? '<div style="margin-top:6px;padding-top:4px;border-top:.5px solid #EEE"><div style="font-size:9px;font-weight:700;color:#CCC;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">Other detected topics (below threshold)</div>' + rawRows + '</div>' : '')
+    + '</div>'
+    + '</div>';
+}
+
+function cloudMatSection(a){
+  const cm = a.cloudMat;
+  if(!cm || cm.allProducts === 0){
+    return '<div style="margin:.6rem 0;padding:.55rem .85rem;background:#F9F9F9;border-radius:6px;border:1px solid #EEE;font-size:11px;color:#AAA"><span style="font-weight:600;color:#CCC">Cloud Maturity</span> — no data for this account</div>';
+  }
+  const ff = (a.ztn_firmo||[]).filter(f=>f.label&&(
+    f.label.includes('Cloud-native')||f.label.includes('Cloud-forward')||
+    f.label.includes('Large cloud')||f.label.includes('High cloud')||f.label.includes('Multi-cloud')
+  ));
+  const cloudPct = Math.round((cm.cloudPct||0)*100);
+  const cspList = [cm.aws>0?'AWS ('+cm.aws+')':'', cm.azure>0?'Azure ('+cm.azure+')':'', cm.gcp>0?'GCP ('+cm.gcp+')':''].filter(Boolean);
+  const cspCount = cspList.length;
+  const maturityLabel = cloudPct>=70?'Cloud-Native':cloudPct>=50?'Cloud-Forward':cloudPct>=30?'Hybrid':'On-Prem Heavy';
+  const maturityColor = cloudPct>=70?'#1A7F3C':cloudPct>=50?'#0D6E94':cloudPct>=30?'#B87000':'#888';
+  const totalAmpPts = ff.reduce((s,f)=>s+f.pts,0);
+
+  let ampRows = ff.length
+    ? ff.map(f=>'<div class="sig-row"><span class="sig-name">'+f.label+'</span><span class="sig-val"><span class="badge bf">cloud amplifier</span></span><span class="sig-pts fired">+'+f.pts+' pts</span></div>').join('')
+    : '<div style="font-size:11px;color:#BBB;padding:3px 0">No amplifiers fired — cloud maturity below thresholds</div>';
+
+  return '<div style="margin:.6rem 0;border:1px solid #E5E5E5;border-left:3px solid #0D6E94;border-radius:6px;overflow:hidden">'
+    + '<div style="background:#F0F8FF;padding:.55rem .85rem;display:flex;justify-content:space-between;align-items:center">'
+    + '<span style="font-size:10px;font-weight:700;color:#0D6E94;letter-spacing:.3px">CLOUD MATURITY</span>'
+    + '<span style="font-size:10px;font-weight:700;color:'+maturityColor+'">'+maturityLabel+(totalAmpPts>0?' · +'+totalAmpPts+' pts ZTN':' · no amplifiers')+'</span>'
+    + '</div>'
+    + '<div style="padding:.6rem .85rem;display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;border-bottom:1px solid #F0F0F0">'
+    + '<div><div style="font-size:9px;color:#AAA;text-transform:uppercase;letter-spacing:.3px">Cloud products</div><div style="font-size:16px;font-weight:700;color:#0D6E94">'+cloudPct+'%</div><div style="font-size:10px;color:#888">'+cm.cloudProducts+' of '+cm.allProducts+' total</div></div>'
+    + '<div><div style="font-size:9px;color:#AAA;text-transform:uppercase;letter-spacing:.3px">CSP presence</div><div style="font-size:13px;font-weight:700;color:#555">'+cspCount+' cloud'+(cspCount!==1?'s':'')+'</div>'
+    + '<div style="font-size:10px;color:#888">'+(cspList.join(' · ')||'None detected')+'</div></div>'
+    + '<div><div style="font-size:9px;color:#AAA;text-transform:uppercase;letter-spacing:.3px">New services (18mo)</div><div style="font-size:14px;font-weight:700;color:#555">'+cm.newCloud+'</div><div style="font-size:10px;color:#888">cloud products added</div></div>'
+    + '<div><div style="font-size:9px;color:#AAA;text-transform:uppercase;letter-spacing:.3px">Cloud momentum</div><div style="font-size:14px;font-weight:700;color:'+(cm.delta>=0.1?'#1A7F3C':cm.delta>=0.05?'#B87000':'#888')+'">'+Math.round((cm.delta||0)*100)+'%</div><div style="font-size:10px;color:#888">change in cloud %</div></div>'
+    + '</div>'
+    + '<div style="padding:.5rem .85rem">'
+    + '<div style="font-size:9px;font-weight:700;color:#AAA;text-transform:uppercase;letter-spacing:.4px;margin-bottom:.35rem">ZTN score amplifiers</div>'
+    + ampRows
+    + '</div>'
+    + '</div>';
+}
+
+function ucSections(a,pillar,color){
+  const label=pillar==='ztw'?'Zero Trust for Workloads':'Zero Trust for Networking';
+  const uc=Object.entries(a[pillar]).map(([uc,d])=>{
+    const pct=Math.round((d.pts/d.max)*100);
+    const id=pillar+'_'+uc.replace(/\W/g,'_');
+    const renderSigRows = (sigs, type) => {
+      return sigs.map(s => {
+        const fired = s.pts > 0;
+        let valTxt = '', badgeCls = 'bp', badgeLbl = type === 'spend' ? 'spend' : 'install';
+        if(type === 'spend'){
+          const vf = fmt$(s.value);
+          const thLabel = s.value>=s.thH?`>${fmt$(s.thH)} hit`:s.value>=s.thM?`>${fmt$(s.thM)} hit`:s.value>=1e6?'>$1M hit':'below threshold';
+          valTxt = (vf||'no data') + ' · ' + thLabel;
+          badgeCls = 'bs';
+        } else {
+          if(s.type==='install') valTxt = s.prod?s.prod:'not detected';
+          else if(s.type==='install+intensity'){valTxt=s.prod?s.prod+(s.note?' · '+s.note:''):'not detected';if(s.prod&&s.intensity)badgeCls='bi',badgeLbl='intensity';}
+          else if(s.type==='on-prem'){valTxt=s.prod?s.prod+' (on-prem)':'not detected';badgeCls='bo';badgeLbl='on-prem';}
+          else if(s.type==='category'){valTxt=`${s.catCount} detected (need ${s.threshold}+)`;badgeCls='bc';badgeLbl='category';}
+        }
+        return {fired, html: `<div class="sig-row">
+          <span class="sig-name">${s.label}</span>
+          <span class="sig-val">${valTxt} <span class="badge ${badgeCls}">${badgeLbl}</span></span>
+          <span class="sig-pts ${fired?'fired':'zero'}">${fired?'+'+s.pts:'0'} pt${s.pts!==1?'s':''}</span>
+        </div>`};
+      });
+    };
+
+    const buildSection = (rows, title) => {
+      const fired = rows.filter(r=>r.fired);
+      const unfired = rows.filter(r=>!r.fired);
+      const secId = pillar+'_'+uc.replace(/\W/g,'_')+'_'+title.replace(/\s/g,'');
+      let html = '';
+      if(fired.length) html += fired.map(r=>r.html).join('');
+      if(unfired.length){
+        html += `<div class="unfired-toggle" onclick="toggleUnfired('${secId}')" style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:3px 0;margin-top:2px;font-size:10px;color:#AAA;user-select:none">
+          <span id="unfired-chev-${secId}" style="font-size:9px">▸</span>
+          <span>${unfired.length} signal${unfired.length!==1?'s':''} not detected</span>
+        </div>
+        <div id="unfired-${secId}" style="display:none">${unfired.map(r=>r.html).join('')}</div>`;
+      }
+      return html;
+    };
+
+    const spendRows = buildSection(renderSigRows(d.spendDetail, 'spend'), 'spend');
+    const instRows = buildSection(renderSigRows(d.installDetail, 'install'), 'install');
+    return`<div class="uc-block">
+      <div class="uc-header" onclick="toggleUC('${id}')">
+        <span class="uc-name">${uc}</span>
+        <div class="uc-bw"><div class="uc-b" style="width:${pct}%;background:${color}"></div></div>
+        <span class="uc-pts" style="color:${color}">${d.pts}/${d.max}</span>
+        <span class="chev" id="chev_${id}">▾</span>
+      </div>
+      <div class="uc-body" id="body_${id}">
+        <div class="sig-sec-title">Spend signals</div>${spendRows}
+        <div class="sig-sec-title" style="margin-top:6px">Product install signals</div>${instRows}
+      </div>
+    </div>`;
+  }).join('');
+  const firmo=a[pillar+'_firmo'];
+  const firmoHtml=firmo.length
+    ? firmo.map(f=>`<div class="sig-row"><span class="sig-name">${f.label}</span><span class="sig-val"><span class="badge bf">firmographic</span></span><span class="sig-pts fired">+${f.pts} pts</span></div>`).join('')
+    : `<div style="font-size:11px;color:#BBB;padding:3px 0">No amplifiers fired</div>`;
+  const firmoBlockCls=pillar==='ztn'?'firmo-block ztn':'firmo-block';
+  return`<div class="pillar-label">${label}</div>
+    ${uc}
+    <div class="${firmoBlockCls}" style="margin-top:4px">
+      <div class="firmo-title">Firmographic amplifiers</div>
+      ${firmoHtml}
+    </div>`;
+}
+
+function toggleUnfired(id){
+  const el = document.getElementById('unfired-'+id);
+  const chev = document.getElementById('unfired-chev-'+id);
+  if(!el) return;
+  const open = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  if(chev) chev.textContent = open ? '▸' : '▾';
+}
+
+function toggleUC(id){
+  const b=document.getElementById('body_'+id),c=document.getElementById('chev_'+id);
+  if(!b)return;b.classList.toggle('open');c.classList.toggle('open');
+}
+
+function renderDist(){
+  const tc=k=>({A:accounts.filter(a=>a[k]==='A').length,B:accounts.filter(a=>a[k]==='B').length,C:accounts.filter(a=>a[k]==='C').length});
+  const zt=tc('ztw_ti'),nt=tc('ztn_ti'),n=accounts.length;
+  const bar=(cnt,color)=>`<div class="db" style="width:${Math.round((cnt/n)*100)}%;background:${color}">${cnt>1?cnt:''}</div>`;
+  const ucd=(pl,c)=>{const uc={};for(const a of accounts){const u=a[pl+'_tp'];if(u&&u!=='—')uc[u]=(uc[u]||0)+1;}
+    return Object.entries(uc).sort((a,b)=>b[1]-a[1]).map(([u,cnt])=>`<div class="dr"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u}</span><div class="dbw"><div class="db" style="width:${Math.round((cnt/n)*100)}%;background:${c}">${cnt}</div></div></div>`).join('');};
+  document.getElementById('dg').innerHTML=`
+    <div class="dc"><div class="dt" style="color:${ZW}">ZTW tier distribution</div>
+      <div class="dr"><b>A</b><div class="dbw">${bar(zt.A,'#4A235A')}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${zt.A}</span></div>
+      <div class="dr"><b>B</b><div class="dbw">${bar(zt.B,ZW)}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${zt.B}</span></div>
+      <div class="dr"><b>C</b><div class="dbw">${bar(zt.C,'#AFA9EC')}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${zt.C}</span></div>
+    </div>
+    <div class="dc"><div class="dt" style="color:${ZN}">ZTN tier distribution</div>
+      <div class="dr"><b>A</b><div class="dbw">${bar(nt.A,'#0B4F6C')}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${nt.A}</span></div>
+      <div class="dr"><b>B</b><div class="dbw">${bar(nt.B,ZN)}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${nt.B}</span></div>
+      <div class="dr"><b>C</b><div class="dbw">${bar(nt.C,'#85B7EB')}</div><span style="min-width:20px;text-align:right;color:#666;font-size:11px">${nt.C}</span></div>
+    </div>
+    <div class="dc"><div class="dt" style="color:${ZW}">Top ZTW use case by account</div>${ucd('ztw',ZW)}</div>
+    <div class="dc"><div class="dt" style="color:${ZN}">Top ZTN use case by account</div>${ucd('ztn',ZN)}</div>`;
+}
+
+function doExport(){
+  const rows=[['Account','Industry','Lighthouse Score','Lighthouse Tier','Signal Tier','Confidence %','ZTN Score','ZTN Tier','Top ZTN Use Case','ZTW Score','ZTW Tier','Top ZTW Use Case','Employees','Revenue','Country','IT Budget ($)','AE']];
+  for(const a of accounts)rows.push([a.name,a.ind,a.lh_sc,a.lh_tier,a.signal||'D',a.confidence_pct||0,a.ztn_sc,a.ztn_ti,a.ztn_tp,a.ztw_sc,a.ztw_ti,a.ztw_tp,a.emp,a.rev,a.cty,a.itb,(repMap[a.name]||repMap[normName(a.name)])?.rep||(a.ob1p_detail?.ae||'')]);
+  const csv=rows.map(r=>r.map(v=>'"'+(String(v||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
+  const el=document.createElement('a');el.href=url;el.download='OBS_Propensity_Scores.csv';el.click();URL.revokeObjectURL(url);
+}
+
+
+// ── SCORING KEY ──────────────────────────────────────────────────────────────
+const KEY_DATA = {
+  ztw: [
+    {
+      uc: 'Prevent Lateral Movement',
+      rationale: 'Workloads that run across VMs, containers, and cloud PaaS have implicit trust by default — any compromised node can move laterally unchecked. Aviatrix replaces static IP rules with identity-based policy that follows the workload, not the network address. This use case is the primary ZTW entry motion for OBS accounts with complex workload environments.',
+      weight: '40% of ZTW score',
+      spend: [
+        { label: 'Hardware Security spend', col: 'Security', why: 'On-prem security hardware (firewalls, IDS/IPS) signals existing workload complexity that needs protecting. High spend = large environment, higher lateral movement risk.' },
+        { label: 'Cloud Services spend', col: 'Cloud Services Total', why: 'Proxy for cloud workload footprint size. The more an account spends on cloud services, the more workloads exist across CSPs — each a potential lateral movement vector.' },
+        { label: 'IAM spend', col: 'Identity and Access Management', why: 'IAM investment signals the account cares about identity but may lack workload-level enforcement. IAM without network micro-segmentation is the classic gap Aviatrix fills.' },
+        { label: 'IaaS spend', col: 'Infrastructure-as-a-Service (IaaS)', why: 'Direct proxy for VM/compute footprint across cloud providers. Higher IaaS spend = more workloads to segment and protect.' },
+      ],
+      installs: [
+        { label: 'VMware (any product)', why: 'VMware presence = large VM-based workload estate. These environments have east-west traffic that firewalls cannot inspect — the exact gap Aviatrix closes with workload identity policy.' },
+        { label: 'CrowdStrike Falcon', why: 'Endpoint detection signals the account is mature on endpoint security but may lack network-layer segmentation. CrowdStrike + Aviatrix is a natural pairing: endpoint identity feeding network policy.' },
+        { label: 'Microsoft Defender', why: 'Same rationale as CrowdStrike. High intensity (>1000) means deep Defender deployment — org is investing in workload security, making it receptive to the next layer: network micro-segmentation.' },
+        { label: 'Illumio', why: 'Illumio presence scores positively because it signals the account is already trying to solve lateral movement but with an agent-based approach. Aviatrix is the network-layer complement, not a replacement.' },
+        { label: 'Virtualisation category depth', why: 'Count of products in the Virtualisation category is a proxy for environment complexity. 3+ virtualisation products = heterogeneous workload stack = harder to enforce consistent policy without a fabric.' },
+      ],
+    },
+    {
+      uc: 'Block Data Exfiltration',
+      rationale: 'Compromised workloads communicating with malicious external domains is the leading vector for data theft. Aviatrix provides Layer 7 egress filtering with geo/domain controls and packet decryption — capabilities that cloud-native routing cannot provide. This use case resonates most with accounts that have DLP tooling but lack egress visibility at the network layer.',
+      weight: '35% of ZTW score',
+      spend: [
+        { label: 'Info & Threat Mgmt spend', col: 'Information and Threat Management', why: 'DLP, email security, and threat intel spend signals the account is actively managing data exfiltration risk. High spend = they\'re trying to solve this problem, creating receptivity to the network-layer component.' },
+        { label: 'Managed Security Services spend', col: 'Managed Security Services', why: 'Outsourced MSS is a strong signal of a security ops gap. MSS providers rarely provide inline egress inspection — they monitor, they don\'t block. Aviatrix fills that inline enforcement gap.' },
+        { label: 'Cloud Services spend', col: 'Cloud Services Total', why: 'Egress from cloud workloads is the primary exfiltration surface. High cloud spend = large egress attack surface without inline filtering.' },
+        { label: 'Security Total spend', col: 'Security Total', why: 'Supporting signal — overall security investment indicates budget and security maturity, both prerequisites for a ZTW conversation.' },
+      ],
+      installs: [
+        { label: 'McAfee / Trellix DLP', why: 'DLP product presence confirms the account has invested in data protection. However, DLP tools operate at the endpoint and application layer — they don\'t inspect cloud egress traffic at the network layer. That\'s the Aviatrix gap.' },
+        { label: 'Palo Alto NGFW', why: 'Palo Alto NGFW signals egress complexity and the account\'s willingness to invest in inspection. Also a signal that they understand network-layer security — receptive to Aviatrix Layer 7 egress controls.' },
+        { label: 'Fortinet FortiGate', why: 'Same signal as Palo Alto — NGFW presence means the account has egress inspection on-prem but likely lacks it in cloud workloads. High intensity means FortiGate is deeply embedded, creating a hybrid gap.' },
+        { label: 'Trend Micro', why: 'Trend Micro in cloud environments (Deep Security, Cloud One) signals workload-centric security thinking. These tools protect at the host layer; Aviatrix adds the network-layer egress control.' },
+        { label: 'Cisco Web Security', why: 'Web security appliances signal URL/domain filtering maturity on-prem. Cloud-bound traffic bypasses these appliances — Aviatrix provides the equivalent control for cloud egress.' },
+        { label: 'Content Filtering category depth', why: '2+ content filtering products = the account has invested heavily in egress filtering on-prem but faces a gap in cloud environments where those appliances are absent.' },
+      ],
+    },
+    {
+      uc: 'Accelerate Secure Developer Velocity',
+      rationale: 'Platform engineering and DevOps teams deploying cloud infrastructure via Terraform and CI/CD pipelines need security policy to deploy alongside workloads — not as a separate manual step that slows them down. Aviatrix provides a Terraform provider that lets developers define network security policy as code, automatically deploying it through the same IaC pipeline. This use case requires access to a platform engineering or DevOps buyer.',
+      weight: '25% of ZTW score',
+      spend: [
+        { label: 'App Dev Software spend', col: 'Application Development Software', why: 'Direct signal of developer tooling investment and developer headcount. High spend = mature developer platform team — the exact buyer for this use case.' },
+        { label: 'App Dev & Deployment spend', col: 'Application Development and Deployment Total', why: 'Broader category covering CI/CD, testing, and deployment infrastructure. High spend signals a mature DevOps practice and receptivity to IaC-based security.' },
+        { label: 'PaaS spend', col: 'Platform-as-a-Service (PaaS)', why: 'PaaS usage (Kubernetes, serverless, managed databases) means developers are deploying to environments where traditional security tooling doesn\'t reach. Aviatrix fills the network security gap in PaaS-heavy stacks.' },
+      ],
+      installs: [
+        { label: 'Terraform / HashiCorp', why: 'The most direct signal for this use case. Terraform presence means the team already deploys infrastructure as code — Aviatrix\'s Terraform provider slots directly into their existing workflow with no process change.' },
+        { label: 'GitHub Enterprise', why: 'GitHub Enterprise signals a mature developer platform and professional software delivery practices. High intensity (>1000) means it\'s deeply embedded as the source-of-truth for infrastructure code.' },
+        { label: 'GitLab', why: 'Same IaC signal as GitHub. GitLab users often have more integrated CI/CD pipelines — Aviatrix policy can be triggered as a pipeline stage.' },
+        { label: 'Jenkins CI/CD', why: 'Jenkins presence means the account has automated build/deploy pipelines. Network security policy can be injected as a Jenkins stage alongside infrastructure provisioning.' },
+        { label: 'Docker', why: 'Docker signals container-based workload deployment. Containerised environments have dynamic network topologies that static firewall rules cannot track — Aviatrix policy follows the container.' },
+        { label: 'Container / IaC category depth', why: '3+ products in the Virtualisation/Container category means the team is running a sophisticated container platform. These environments have the most acute need for automated, policy-as-code network security.' },
+      ],
+    },
+  ],
+  ztn: [
+    {
+      uc: 'Unified Cloud Network Fabric (UCNF)',
+      rationale: 'Enterprises running workloads across multiple cloud providers (AWS, Azure, GCP) face fragmented connectivity, inconsistent routing, and limited visibility. Each CSP has its own networking primitives — Transit Gateway, Virtual WAN, VPC peering — that don\'t interoperate. Aviatrix\'s UCNF eliminates cloud-specific limitations with a single control plane, centralised visibility, and enterprise-grade networking across all clouds. This is the primary ZTN entry motion for OBS accounts with IaaS spend across multiple CSPs.',
+      weight: '35% of ZTN score',
+      spend: [
+        { label: 'Network Infrastructure spend', col: 'Network Infrastructure', why: 'The most direct signal — investment in network infrastructure indicates a team that owns and manages network connectivity. High spend = complex networking environment where Aviatrix UCNF delivers the most value.' },
+        { label: 'IaaS spend', col: 'Infrastructure-as-a-Service (IaaS)', why: 'Best proxy for multi-cloud workload footprint. Accounts spending >$50M on IaaS almost certainly run on multiple CSPs — the exact condition that creates the UCNF opportunity.' },
+        { label: 'Co-location spend', col: 'Co-location Services', why: 'Colo presence means the account has a hybrid environment — cloud + on-prem DC. Hybrid connectivity is one of the hardest UCNF problems and one of Aviatrix\'s strongest capabilities.' },
+        { label: 'Data Center Outsourcing spend', col: 'Data Center Outsourcing', why: 'DC outsourcing signals existing data center infrastructure that needs to connect to cloud. Aviatrix UCNF bridges the on-prem to cloud connectivity gap.' },
+      ],
+      installs: [
+        { label: 'Cisco SD-WAN / Meraki', why: 'SD-WAN presence means the account has already tried to solve multi-site connectivity. SD-WAN doesn\'t extend well into cloud VPCs — Aviatrix UCNF is the natural extension from branch to cloud.' },
+        { label: 'Silver Peak (HPE) SD-WAN', why: 'Legacy SD-WAN signal. Silver Peak/HPE SD-WAN customers face the same cloud connectivity gap. Also a displacement signal — these platforms are being sunset in favour of cloud-native approaches.' },
+        { label: 'Citrix SD-WAN', why: 'Same displacement signal as Silver Peak. Citrix SD-WAN has limited CSP-native integration — accounts using it for multi-cloud connectivity face operational overhead that Aviatrix eliminates.' },
+        { label: 'VMware NSX / Cloud Foundation', why: 'VMware NSX on-prem + cloud workloads = complex hybrid fabric problem. High intensity means NSX is deeply embedded — Aviatrix UCNF bridges the NSX environment to cloud without requiring NSX everywhere.' },
+        { label: 'Multi-cloud workload signal', why: 'Azure and AWS product presence in the same account is the strongest multi-cloud signal in the Installs sheet. Running workloads on both CSPs directly creates the UCNF connectivity and visibility problem.' },
+        { label: 'Network Infrastructure category depth', why: '3+ products in the Network Infrastructure category = complex, layered networking stack. These environments benefit most from a unified control plane that abstracts the underlying complexity.' },
+      ],
+    },
+    {
+      uc: 'Zero Trust Network Segmentation',
+      rationale: 'Legacy network architectures rely on perimeter-based trust — once inside the network, east-west traffic between segments is implicitly trusted. Aviatrix provides cloud-native network segmentation using routing table isolation and dynamic policy enforcement — no agents, no appliances. This use case targets accounts with flat network architectures, particularly in regulated industries where audit requirements demand demonstrable segmentation.',
+      weight: '25% of ZTN score',
+      spend: [
+        { label: 'Network Management spend', col: 'Network Management', why: 'Network management investment signals a team actively managing network topology and segmentation. High spend = operational network complexity — the exact environment where policy-driven segmentation delivers value.' },
+        { label: 'Cloud Services spend', col: 'Cloud Services Total', why: 'Cloud workloads in a flat network are the primary segmentation risk. High cloud spend without segmentation tooling detected = the account has a known gap.' },
+        { label: 'Network Consulting spend', col: 'Network Consulting', why: 'Consulting spend signals the account is working through network architecture decisions — a window of opportunity to influence their segmentation approach.' },
+      ],
+      installs: [
+        { label: 'Cisco ISE (flat network signal)', why: 'Cisco ISE is the gold-standard signal for flat network architecture. ISE does NAC and policy at the access layer — it does not segment cloud VPCs. High intensity (>500) means ISE is the backbone of their network policy, creating a direct cloud segmentation gap.' },
+        { label: 'Cisco ASA', why: 'Cisco ASA firewalls define perimeter-based segmentation. Accounts with heavy ASA deployments have invested in perimeter security but lack east-west cloud segmentation — the core Aviatrix value prop.' },
+        { label: 'Check Point firewall', why: 'Same rationale as Cisco ASA. Check Point is perimeter-centric. The account has segmentation intent but perimeter-only execution — Aviatrix adds cloud-native east-west enforcement.' },
+        { label: 'Palo Alto PAN-OS', why: 'Palo Alto in segmentation context signals the account understands micro-segmentation but is doing it via appliance. Aviatrix replaces the appliance with software-defined cloud-native routing — no hardware dependency.' },
+        { label: 'VMware NSX', why: 'NSX for segmentation is a strong positive signal — the account already understands and values micro-segmentation. NSX on-prem does not extend to cloud VPCs. Aviatrix is the cloud-native complement.' },
+        { label: 'Firewall Appliance category depth', why: '3+ firewall appliance products = the account is trying to solve segmentation with hardware across multiple perimeters. This is exactly the complexity Aviatrix eliminates with software-defined policy.' },
+      ],
+    },
+    {
+      uc: 'Secure Third-Party & External Access',
+      rationale: 'Enterprises grant access to hundreds of vendors, partners, contractors, and B2B integrations through legacy VPN or partner portals. These connections are over-permissive — a vendor gets broad network access rather than scoped, monitored, policy-controlled access. Aviatrix provides policy-based third-party access with integrated firewall inspection and automated partner connectivity. The primary displacement target is Cisco AnyConnect and legacy SSL VPN.',
+      weight: '20% of ZTN score',
+      spend: [
+        { label: 'UC&C spend', col: 'Unified Communications and Collaboration', why: 'High UC&C spend signals a large external communication and collaboration surface — many external parties accessing internal systems. This directly correlates with third-party access complexity.' },
+        { label: 'Network Services spend', col: 'Network Services Total', why: 'Broad network services spend signals a complex, multi-vendor network environment with many external connection points — each a potential third-party access risk.' },
+        { label: 'IAM spend', col: 'Identity and Access Management', why: 'IAM investment signals the account is managing external identities but may lack network-layer enforcement. IAM policy without ZTNA network enforcement is incomplete third-party access control.' },
+      ],
+      installs: [
+        { label: 'Cisco AnyConnect (legacy VPN)', why: 'The single strongest displacement signal in this use case. AnyConnect with high intensity (>1000) means it\'s the primary remote access solution for a large user base. AnyConnect grants broad network access — Aviatrix replaces it with scoped, policy-controlled ZTNA.' },
+        { label: 'Ivanti / Pulse VPN', why: 'Same displacement signal as AnyConnect. Ivanti (formerly Pulse Secure) VPN is a legacy remote access platform with the same over-permissive network access problem. Also carries CVE risk that creates urgency.' },
+        { label: 'BeyondTrust PAM', why: 'Privileged access management for third parties. BeyondTrust presence means the account is managing privileged vendor access — receptive to policy-based network access controls as the network enforcement layer.' },
+        { label: 'Okta (IAM without ZTNA gap)', why: 'Okta signals strong identity management without corresponding network enforcement. Identity-only access control (no ZTNA) means a stolen credential grants full network access. Aviatrix adds the network layer that Okta alone cannot provide.' },
+        { label: 'Citrix Workspace', why: 'Citrix Workspace for third-party access is a legacy remote desktop approach. High intensity means many external users rely on it. Aviatrix provides a modern ZTNA alternative with lower operational overhead.' },
+        { label: 'IAM category depth', why: '2+ IAM products signals the account has invested in identity but may be managing multiple access control systems with inconsistent policy. A network-layer enforcement point (Aviatrix) unifies policy across all identity sources.' },
+      ],
+    },
+    {
+      uc: 'Enforce End-to-End Network Encryption',
+      rationale: 'Traffic between cloud workloads and between cloud and on-prem environments often traverses untrusted paths — CSP backbone, internet transit, colocation cross-connects — without encryption. Aviatrix provides patented software-based tunnel multiplexing for E2E encryption without hardware appliances or special configuration. This use case is strongest for accounts with data sovereignty requirements, regulated data, or hybrid cloud environments with compliance drivers.',
+      weight: '20% of ZTN score',
+      spend: [
+        { label: 'Encryption & SSL spend', col: 'Encryption and SSL Accelerators', why: 'The most specific spend signal for this use case. Investment in encryption and SSL acceleration hardware means the account understands the problem — they\'re encrypting at the perimeter but likely have gaps in cloud-to-cloud and cloud-to-DC paths.' },
+        { label: 'BC/DR spend', col: 'Business Continuity / Disaster Recovery', why: 'BC/DR investment means the account has replicated data and traffic flowing between environments — primary site, DR site, cloud. These cross-environment paths are exactly where E2E encryption is most critical and most often missing.' },
+        { label: 'Co-location spend', col: 'Co-location Services', why: 'Colo = hybrid environment with traffic traversing colo cross-connects. These are not encrypted by default. Accounts with significant colo spend have real exposure on DC-to-cloud paths.' },
+        { label: 'Cloud Services spend', col: 'Cloud Services Total', why: 'Cloud workloads sending data back to on-prem systems (databases, file systems) traverse paths that may not be encrypted end-to-end. High cloud spend = large unencrypted cross-cloud surface.' },
+      ],
+      installs: [
+        { label: 'HPE OneView / Data Mgmt', why: 'HPE product presence is the most specific install signal for this use case — HPE is the product used to deliver Enforce E2E Network Encryption. High intensity confirms deep deployment.' },
+        { label: 'F5 BIG-IP (SSL offload)', why: 'F5 BIG-IP for SSL offload signals the account uses hardware for encryption termination. SSL offload is a perimeter function — Aviatrix provides the equivalent capability for cloud-to-cloud paths without F5 hardware.' },
+        { label: 'Cisco NX-OS / Catalyst', why: 'Cisco data center switching (NX-OS, Catalyst) signals a large on-prem DC fabric. Traffic leaving this fabric to cloud is often unencrypted. Aviatrix creates an encrypted tunnel from the DC edge to cloud workloads.' },
+        { label: 'Juniper / Junos OS', why: 'Juniper routing infrastructure in the WAN or DC signals complex multi-path traffic flows. High intensity means Juniper is the core routing platform — these environments have the most complex encryption gap between on-prem and cloud.' },
+        { label: 'VMware (on-prem hybrid signal)', why: 'On-premise VMware installs (Product On Premise Flag = TRUE) are the strongest hybrid environment indicator. Traffic between on-prem VMware workloads and cloud VMs is the primary E2E encryption use case.' },
+        { label: 'Encryption / SSL category depth', why: '2+ products in the Encryption and SSL Accelerators category means the account has invested in encryption at the hardware layer but may lack software-based encryption for dynamic cloud paths.' },
+      ],
+    },
+  ],
+};
+
+function renderKey(){
+  const el=document.getElementById('tkey');
+  if(el.dataset.rendered) return;
+  el.dataset.rendered='1';
+
+  el.innerHTML = `
+  <style>
+  .key-page{padding:.5rem 0 2rem;max-width:900px}
+  .key-section{margin-bottom:1.5rem;background:#FFF;border:.5px solid #E5E5E5;border-radius:8px;overflow:hidden}
+  .key-section-hdr{padding:.65rem .9rem;font-size:12px;font-weight:700;background:#F5F5F5;border-bottom:1px solid #EEE;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none}
+  .key-section-hdr:hover{background:#F0F0F0}
+  .key-section-body{padding:.75rem .9rem}
+  .key-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:.4rem}
+  .key-table th{background:#F8F8F8;padding:5px 8px;text-align:left;font-weight:600;font-size:10px;color:#666;border-bottom:1px solid #EEE}
+  .key-table td{padding:5px 8px;border-bottom:.5px solid #F5F5F5;vertical-align:top;font-size:11px;line-height:1.5}
+  .key-table tr:last-child td{border-bottom:none}
+  .key-note{margin-top:.6rem;padding:.5rem .65rem;border-radius:4px;font-size:11px;line-height:1.6}
+  .key-note.blue{background:#E0F4FF;border-left:3px solid #0D6E94}
+  .key-note.orange{background:#FFF8E1;border-left:3px solid #E65100}
+  .key-note.green{background:#E8F5E9;border-left:3px solid #1A7F3C}
+  .key-note.purple{background:#F3E8FF;border-left:3px solid #6B2E9E}
+  .tier-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:.4rem}
+  .tier-chip{border-radius:6px;padding:.4rem .6rem;text-align:center;font-size:11px;font-weight:600}
+  .sig-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:.4rem}
+  .uc-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.4rem}
+  .uc-card{border:1px solid #EEE;border-radius:6px;padding:.5rem .65rem}
+  .uc-card.ztn{border-left:3px solid #0D6E94}
+  .uc-card.ztw{border-left:3px solid #6B2E9E}
+  .intent-topic{display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid #F5F5F5;font-size:11px}
+  .intent-topic:last-child{border-bottom:none}
+  </style>
+  <div class="key-page">
+
+  <div style="background:#F8F7F5;border:1px solid #E5E5E5;border-radius:8px;padding:.85rem 1rem;margin-bottom:1rem;font-size:12px;color:#555;line-height:1.6">
+    <strong>OBS Propensity Model v2.0</strong> — scores OBS's 134 NAM accounts for Aviatrix cross-sell across Zero Trust for Networking (ZTN) and Zero Trust for Workloads (ZTW).
+    <strong>ZTN is the primary entry motion</strong> — OBS's connectivity identity maps directly to the networking use cases. ZTW is a secondary expansion motion.
+    The Lighthouse score combines up to four data sources with automatic weight rebalancing as sources are added.
+  </div>
+
+  <!-- LIGHTHOUSE SCORE -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-lh','ks-lh-chev')">
+      <span>Lighthouse Score — composite prioritization output</span><span id="ks-lh-chev">▾</span>
+    </div>
+    <div id="ks-lh" class="key-section-body">
+      <div class="key-note blue">The Lighthouse score is the primary account prioritization output. It combines all available data sources, rebalancing weights automatically so scores are always valid regardless of which sources are loaded.</div>
+      <table class="key-table" style="margin-top:.75rem">
+        <thead><tr><th>#</th><th>Source</th><th>Full-model weight</th><th>What it measures</th></tr></thead>
+        <tbody>
+          <tr><td>①</td><td><strong>OBS First-Party Intelligence</strong></td><td>30%</td><td>AE-assessed buying center access, advisor status, live initiative, purchase control, incumbent vendor (Q1–Q7 workbook)</td></tr>
+          <tr><td>②</td><td><strong>HG Fit Score</strong></td><td>35%</td><td>ZTN score directly (v2.0). ZTW is an expansion indicator only — it no longer drags down accounts with strong networking fit.</td></tr>
+          <tr><td>③</td><td><strong>ZoomInfo Intent Score</strong></td><td>20%</td><td>In-market buying signal from ZoomInfo intent topics (upload when available)</td></tr>
+          <tr><td>④</td><td><strong>HG Intent Score</strong></td><td>15%</td><td>Derived automatically from HG Intent sheet topics — mapped to use cases via the 11-topic intent map</td></tr>
+        </tbody>
+      </table>
+      <div class="key-note orange" style="margin-top:.6rem"><strong>Weight rebalancing:</strong> when only HG Fit is present, it carries 100% of the score. Each source added redistributes proportionally. Scores show "X/4 sources" so recipients know confidence level.</div>
+      <div class="tier-grid" style="margin-top:.75rem">
+        <div class="tier-chip" style="background:#D4EDDA;color:#155724">Tier 1 · 75–100<br><small style="font-weight:400">Priority — act now</small></div>
+        <div class="tier-chip" style="background:#E0F4FF;color:#0B4F6C">Tier 2 · 55–74<br><small style="font-weight:400">Qualify signals</small></div>
+        <div class="tier-chip" style="background:#FFF3CD;color:#856404">Tier 3 · 35–54<br><small style="font-weight:400">Nurture — build access</small></div>
+        <div class="tier-chip" style="background:#F8D7DA;color:#721c24">Tier 4 · 0–34<br><small style="font-weight:400">Deprioritize</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNAL TIER -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-sig','ks-sig-chev')">
+      <span>Signal Tier — urgency axis (independent of Lighthouse)</span><span id="ks-sig-chev">▾</span>
+    </div>
+    <div id="ks-sig" class="key-section-body">
+      <div class="key-note green">Signal tier answers "should we act on this account this week?" independently of the Lighthouse composite score. An account can be Lighthouse Tier 3 but Signal A if intent is firing — that account still needs attention.</div>
+      <table class="key-table" style="margin-top:.75rem">
+        <thead><tr><th>Tier</th><th>Base condition</th><th>Escalation rules</th></tr></thead>
+        <tbody>
+          <tr><td><span style="font-weight:700;color:#155724">A</span></td><td>ZTN score ≥ 70</td><td>Also escalated to A when: OBS 1P ≥75 + base=B, or IN MARKET intent fires + base=B, or dual-source intent (ZI+HGI both ≥40)</td></tr>
+          <tr><td><span style="font-weight:700;color:#856404">B</span></td><td>ZTN score ≥ 45</td><td>Escalated to B when: OBS 1P ≥75 + base=C, or IN MARKET intent fires + base=C</td></tr>
+          <tr><td><span style="font-weight:700;color:#E65100">C</span></td><td>ZTN score ≥ 20</td><td>No escalation — weak fit signals</td></tr>
+          <tr><td><span style="font-weight:700;color:#AAA">D</span></td><td>ZTN score &lt; 20</td><td>No signal detected</td></tr>
+        </tbody>
+      </table>
+      <div class="key-note blue" style="margin-top:.6rem">⚡ Dual-source escalation: when both ZoomInfo intent ≥40 AND HG intent ≥40 fire simultaneously, the account hard-escalates to Signal A regardless of base score.</div>
+    </div>
+  </div>
+
+  <!-- HG FIT SCORE -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-hg','ks-hg-chev')">
+      <span>HG Fit Score — technographic scoring engine</span><span id="ks-hg-chev">▾</span>
+    </div>
+    <div id="ks-hg" class="key-section-body">
+      <div class="key-note blue"><strong>v2.0 change:</strong> HG Fit = ZTN score directly. ZTW is no longer blended in — it cannot drag down accounts with strong networking fit. ZTW remains visible as a separate expansion indicator.</div>
+      <div style="margin-top:.75rem;font-size:12px;font-weight:600;margin-bottom:.4rem">Spend signal scoring</div>
+      <div style="font-size:11px;color:#555;margin-bottom:.4rem">Forward-looking IT budget from HG Spend sheet, tiered into points per use case:</div>
+      <table class="key-table">
+        <thead><tr><th>Tier</th><th>Threshold</th><th>Points</th></tr></thead>
+        <tbody>
+          <tr><td>High</td><td>Above upper threshold (e.g. &gt;$50M IaaS, &gt;$10M Network)</td><td>3 pts</td></tr>
+          <tr><td>Medium</td><td>Above mid threshold (e.g. &gt;$10M IaaS, &gt;$1M Network)</td><td>2 pts</td></tr>
+          <tr><td>Low</td><td>Above $1M</td><td>1 pt</td></tr>
+          <tr><td>None</td><td>Below $1M or no data</td><td>0 pts</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:.75rem;font-size:12px;font-weight:600;margin-bottom:.4rem">Install signal scoring — v2.0 continuous weighting</div>
+      <div class="key-note orange"><strong>v2.0 change:</strong> intensity is now continuous — a product at 40% of the max intensity threshold scores 40% of max install points (not binary 0/1). Also applies a recency multiplier based on Date Last Verified.</div>
+      <table class="key-table" style="margin-top:.5rem">
+        <thead><tr><th>Recency (Date Last Verified)</th><th>Multiplier</th></tr></thead>
+        <tbody>
+          <tr><td>≤ 6 months ago</td><td>1.0× (full credit)</td></tr>
+          <tr><td>7–12 months ago</td><td>0.9×</td></tr>
+          <tr><td>13–18 months ago</td><td>0.8×</td></tr>
+          <tr><td>&gt; 18 months ago</td><td>0.65×</td></tr>
+          <tr><td>Unknown date</td><td>0.9×</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CLOUD MATURITY -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-cm','ks-cm-chev')">
+      <span>Cloud Maturity Amplifiers — ZTN only (v2.0)</span><span id="ks-cm-chev">▾</span>
+    </div>
+    <div id="ks-cm" class="key-section-body">
+      <div class="key-note blue"><strong>New in v2.0.</strong> Cloud maturity data from HG Spend sheet columns 70–79. Amplifiers apply to ZTN score only — cloud depth is a networking problem, not a workload problem.</div>
+      <table class="key-table" style="margin-top:.6rem">
+        <thead><tr><th>Signal</th><th>HG source</th><th>Condition</th><th>Pts</th><th>Rationale</th></tr></thead>
+        <tbody>
+          <tr><td>Cloud-native</td><td>Cloud Products % (col 72)</td><td>≥ 70% of installs are cloud products</td><td>+5</td><td>Deep cloud adoption = multi-VPC complexity = UCNF opportunity exists</td></tr>
+          <tr><td>Cloud-forward</td><td>Cloud Products % (col 72)</td><td>50–69%</td><td>+3</td><td>Majority cloud but not native — hybrid complexity signal</td></tr>
+          <tr><td>Large cloud estate</td><td>Cloud Products count (col 71)</td><td>≥ 100 cloud products</td><td>+3</td><td>Scale = routing/policy complexity across environments</td></tr>
+          <tr><td>High momentum</td><td>Cloud % Change / Delta (col 76)</td><td>Delta ≥ 10%</td><td>+2</td><td>Actively expanding cloud footprint — creates new connectivity gaps</td></tr>
+          <tr><td>Multi-cloud</td><td>AWS/Azure/GCP counts (cols 77–79)</td><td>≥ 2 CSPs with installs &gt; 0</td><td>+3</td><td>Multi-CSP presence directly creates the UCNF problem Aviatrix solves</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- INTENT TOPICS -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-intent','ks-intent-chev')">
+      <span>HG Intent Topics — IN MARKET / QUALIFY logic (v2.0)</span><span id="ks-intent-chev">▾</span>
+    </div>
+    <div id="ks-intent" class="key-section-body">
+      <div class="key-note green"><strong>New in v2.0.</strong> 11 confirmed intent topics from the June 2026 HG export, parsed automatically from the Intent sheet. Each topic maps to a specific use case. Intent score = topic score × (signal strength / 100). MAX per use case (not sum) — prevents weak multi-signal accounts outscoring strong single-signal ones.</div>
+      <table class="key-table" style="margin-top:.6rem">
+        <thead><tr><th>Topic</th><th>Use case</th><th>Pillar</th><th>Base score</th><th>Precision</th></tr></thead>
+        <tbody>
+          <tr><td>Zero Trust Architecture</td><td>UCNF + Zero Trust Network Segmentation</td><td>ZTN</td><td>90</td><td>HIGH</td></tr>
+          <tr><td>Microsegmentation</td><td>Zero Trust Network Segmentation</td><td>ZTN</td><td>90</td><td>HIGH</td></tr>
+          <tr><td>Kubernetes Security</td><td>Prevent Lateral Movement</td><td>ZTW</td><td>85</td><td>HIGH</td></tr>
+          <tr><td>DevSecOps</td><td>Accelerate Secure Dev Velocity</td><td>ZTW</td><td>85</td><td>HIGH</td></tr>
+          <tr><td>Software Composition Analysis (SCA)</td><td>Accelerate Secure Dev Velocity</td><td>ZTW</td><td>80</td><td>HIGH</td></tr>
+          <tr><td>Open Policy Agent (OPA)</td><td>Prevent Lateral Movement</td><td>ZTW</td><td>80</td><td>HIGH</td></tr>
+          <tr><td>Aws Bedrock</td><td>Unified Cloud Network Fabric</td><td>ZTN</td><td>85</td><td>HIGH</td></tr>
+          <tr><td>AI In Production</td><td>Unified Cloud Network Fabric</td><td>ZTN</td><td>80</td><td>MEDIUM</td></tr>
+          <tr><td>Amazon SageMaker</td><td>Unified Cloud Network Fabric</td><td>ZTN</td><td>80</td><td>MEDIUM</td></tr>
+          <tr><td>GitHub Actions</td><td>Accelerate Secure Dev Velocity</td><td>ZTW</td><td>75</td><td>MEDIUM</td></tr>
+          <tr><td>Ibm Watsonx.Governance</td><td>Accelerate Secure Dev Velocity</td><td>ZTW</td><td>70</td><td>MEDIUM</td></tr>
+        </tbody>
+      </table>
+      <table class="key-table" style="margin-top:.75rem">
+        <thead><tr><th>Badge</th><th>Condition</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td><span style="background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:700">IN MARKET</span></td><td>Intent score ≥ 40 AND tech score ≥ 30% of use case max</td><td>Escalates signal tier one level (B→A, C→B). Changes recommended action to "lead with this use case now"</td></tr>
+          <tr><td><span style="background:#FFF8E1;color:#E65100;border:1px solid #FFE082;font-size:10px;padding:1px 6px;border-radius:8px;font-weight:700">QUALIFY</span></td><td>Intent score ≥ 40 but tech score &lt; 30%</td><td>Researching but tech fit unconfirmed — validate in discovery before pitching</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- USE CASES -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-uc','ks-uc-chev')">
+      <span>Use Cases — ZTN (primary entry) and ZTW (expansion)</span><span id="ks-uc-chev">▾</span>
+    </div>
+    <div id="ks-uc" class="key-section-body">
+      <div class="key-note blue"><strong>ZTN leads for OBS.</strong> OBS's connectivity identity maps to the ZTN use cases — UCNF, segmentation, VPN displacement, encryption. ZTW follows after the ZTN foothold is established with a different buyer (security team vs network team).</div>
+      <div style="font-size:11px;font-weight:700;color:#0D6E94;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTN — Zero Trust for Networking (primary)</div>
+      <div class="uc-grid">
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Unified Cloud Network Fabric</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Multi-cloud connectivity fragmentation. Accounts with IaaS spend &gt;$50M + multi-CSP installs + SD-WAN present.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Zero Trust Network Segmentation</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Flat network architecture. Cisco ISE, ASA, Check Point, Palo Alto, firewall appliance depth.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Secure Third-Party &amp; External Access</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Legacy VPN displacement. Cisco AnyConnect (strongest signal), Ivanti, BeyondTrust, Okta.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Enforce E2E Network Encryption</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Unencrypted cloud-to-DC paths. HPE, F5 BIG-IP, Cisco NX-OS, Juniper, VMware on-prem.</div></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#6B2E9E;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTW — Zero Trust for Workloads (expansion)</div>
+      <div class="uc-grid">
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Prevent Lateral Movement</div><div style="font-size:10px;color:#888;margin-top:2px">40% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Workload east-west policy. VMware, CrowdStrike, Defender, Illumio, virtualisation depth.</div></div>
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Block Data Exfiltration</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Cloud egress control. MSS/DLP spend, Palo Alto, Fortinet, Trend Micro, content filtering depth.</div></div>
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Accelerate Secure Dev Velocity</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">IaC/DevSecOps buyer. Terraform, GitHub Enterprise, GitLab, Docker, container depth.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLAGS -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-flags','ks-flags-chev')">
+      <span>Signal Gap Flags</span><span id="ks-flags-chev">▾</span>
+    </div>
+    <div id="ks-flags" class="key-section-body">
+      <table class="key-table">
+        <thead><tr><th>Flag</th><th>Condition</th><th>What it means</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span style="background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px">⚡ access-rich</span></td>
+            <td>OBS 1P ≥ 55 AND HG Fit &lt; 25</td>
+            <td>AE has strong relationships and a live initiative, but HG sees no matching tech environment. Either the account is underrepresented in HG data or the initiative isn't a networking problem.</td>
+            <td>Run discovery to validate: multi-cloud workloads? SD-WAN fragmentation? Legacy VPN at scale? If yes → re-score manually.</td>
+          </tr>
+          <tr>
+            <td><span style="background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px">📡 fit-rich</span></td>
+            <td>HG Fit ≥ 60 AND no OBS 1P loaded</td>
+            <td>Strong technographic signals but no AE interview data. Good fit on paper — unknown whether OBS has the right relationships to move it.</td>
+            <td>Prioritize for AE interview. Complete Q1–Q7 workbook before next pipeline review.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FIRMOGRAPHIC AMPLIFIERS -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-firmo','ks-firmo-chev')">
+      <span>Firmographic Amplifiers</span><span id="ks-firmo-chev">▾</span>
+    </div>
+    <div id="ks-firmo" class="key-section-body">
+      <table class="key-table">
+        <thead><tr><th>Factor</th><th>Points</th><th>Applies to</th></tr></thead>
+        <tbody>
+          <tr><td>Financial Services / Banking / Insurance</td><td>+5 pts</td><td>ZTW + ZTN</td></tr>
+          <tr><td>Healthcare / Life Sciences / Pharma</td><td>+5 pts</td><td>ZTW + ZTN</td></tr>
+          <tr><td>Government / Public Sector</td><td>+4 pts</td><td>ZTN only</td></tr>
+          <tr><td>Manufacturing / Energy / Industrial</td><td>+3 pts</td><td>ZTN only</td></tr>
+          <tr><td>Telecom / Technology</td><td>+3 pts</td><td>ZTN only</td></tr>
+          <tr><td>10,000+ employees</td><td>+3 pts</td><td>ZTW + ZTN</td></tr>
+          <tr><td>5,000–9,999 employees</td><td>+2 pts</td><td>ZTW + ZTN</td></tr>
+        </tbody>
+      </table>
+      <div class="key-note blue" style="margin-top:.5rem">Cloud maturity amplifiers are separate from firmographic amplifiers and apply to ZTN only — see the Cloud Maturity section above.</div>
+    </div>
+  </div>
+
+  <!-- SIGNAL BADGES -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-badges','ks-badges-chev')">
+      <span>Signal Badges — drilldown panel</span><span id="ks-badges-chev">▾</span>
+    </div>
+    <div id="ks-badges" class="key-section-body">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:.6rem;font-size:11px;line-height:1.8">
+        <span><span class="badge bs" style="font-size:10px;padding:2px 7px">spend</span> Forward-looking IT budget category (HG Spend sheet)</span>
+        <span><span class="badge bp" style="font-size:10px;padding:2px 7px">install</span> Product presence detected (HG Installs sheet)</span>
+        <span><span class="badge bi" style="font-size:10px;padding:2px 7px">intensity</span> Vendor penetration — continuous score × recency multiplier</span>
+        <span><span class="badge bc" style="font-size:10px;padding:2px 7px">category</span> Count of products in a relevant HG category</span>
+        <span><span class="badge bo" style="font-size:10px;padding:2px 7px">on-prem</span> On-premise deployment flag — hybrid environment signal</span>
+        <span><span class="badge bf" style="font-size:10px;padding:2px 7px">firmographic</span> Industry vertical or employee band amplifier</span>
+      </div>
+      <div class="key-note purple"><strong>Green points = signal fired. Gray zero = signal evaluated but below threshold.</strong> Both are shown so you can see exactly what was checked and what was missing — not just what contributed to the score.</div>
+    </div>
+  </div>
+
+  </div>`;
+
+  // Wire up collapse toggles
+  document.querySelectorAll('.key-section-hdr').forEach(hdr=>{
+    const bodyId = hdr.getAttribute('onclick').match(/'([^']+)'/)[1];
+    const body = document.getElementById(bodyId);
+    if(body) body.style.display = 'block'; // all open by default
+  });
+}
+
+function toggleKeySection(bodyId, chevId){
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : 'block';
+  if(chev) chev.textContent = isOpen ? '▸' : '▾';
+}
+function toggleRepChip(el){
+  const val = el.dataset.filter;
+  if(val === 'all'){
+    activeRepFilters.clear();
+  } else {
+    if(activeRepFilters.has(val)) activeRepFilters.delete(val);
+    else activeRepFilters.add(val);
+  }
+  renderRep();
+}
+
+function triggerRepUpload(){ document.getElementById("file-input-rep").click(); }
+function clearRepMap(){ repMap={}; renderRep(); }
+function downloadRepTemplate(){
+  const rows=[['Account Name','Rep Name','Territory']];
+  for(const a of accounts) rows.push([a.name,'','']);
+  const csv=rows.map(r=>r.map(v=>'"'+String(v||'').replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);
+  const el=document.createElement('a');el.href=url;el.download='OBS_Rep_Assignments.csv';el.click();URL.revokeObjectURL(url);
+}
+function handleRepFile(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1});
+      let loaded=0;
+      for(let i=1;i<rows.length;i++){
+        const row=rows[i];const nm=String(row[0]||'').trim();const rep=String(row[1]||'').trim();
+        if(nm&&rep){repMap[nm]={rep,territory:String(row[2]||'').trim()};repMap[normName(nm)]={rep,territory:String(row[2]||'').trim()};loaded++;}
+      }
+      logFile(file.name+' · '+loaded+' rep assignments loaded','ok');renderRep();
+    }catch(e){logFile('Error reading rep file: '+e.message,'err');}
+  };
+  r.readAsArrayBuffer(file);
+}
+function renderRep(){
+  const el = document.getElementById('rep-content');
+  if(!el) return;
+
+  const assigned = Object.keys(repMap).length;
+
+  // Filter accounts using persistent activeRepFilters Set
+  let filteredAccounts = accounts;
+  if(activeRepFilters.has('inmarket')) filteredAccounts = filteredAccounts.filter(a=>a.hasInMarket);
+  if(activeRepFilters.has('qualify'))  filteredAccounts = filteredAccounts.filter(a=>a.hasQualify);
+  if(activeRepFilters.has('has1p'))    filteredAccounts = filteredAccounts.filter(a=>a.ob1p_score!=null);
+  if(activeRepFilters.has('sigA'))     filteredAccounts = filteredAccounts.filter(a=>a.signal==='A');
+  if(activeRepFilters.has('sigB'))     filteredAccounts = filteredAccounts.filter(a=>a.signal==='B');
+  if(activeRepFilters.has('sigC'))     filteredAccounts = filteredAccounts.filter(a=>a.signal==='C');
+  if(activeRepFilters.has('t1'))       filteredAccounts = filteredAccounts.filter(a=>a.lh_tier==='1');
+  if(activeRepFilters.has('t2'))       filteredAccounts = filteredAccounts.filter(a=>a.lh_tier==='2');
+
+  // Regroup filtered accounts
+  const groups = {};
+  for(const a of filteredAccounts){
+    const assigned2 = repMap[a.name] || repMap[normName(a.name)];
+    const ae = assigned2 ? assigned2.rep
+             : (a.ob1p_detail && a.ob1p_detail.ae) ? a.ob1p_detail.ae
+             : 'Unassigned';
+    if(!groups[ae]) groups[ae] = [];
+    groups[ae].push(a);
+  }
+
+  // Sort each group: 1P first, then by Lighthouse
+  for(const ae of Object.keys(groups)){
+    groups[ae].sort((a,b)=>{
+      const a1p = a.ob1p_score!=null?1:0, b1p = b.ob1p_score!=null?1:0;
+      if(b1p!==a1p) return b1p-a1p;
+      return b.lh_sc-a.lh_sc;
+    });
+  }
+  const sortedAEs = Object.keys(groups).sort((a,b)=>{
+    if(a==='Unassigned') return 1;
+    if(b==='Unassigned') return -1;
+    return a.localeCompare(b);
+  });
+
+  let out = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">'
+    + '<span style="font-size:11px;color:#888">'+(assigned>0?assigned+' manual assignments':'Grouped by AE workbook')+'</span>'
+    + '<button onclick="triggerRepUpload()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer">&#8593; Upload rep assignments</button>'
+    + (assigned>0?'<button onclick="clearRepMap()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer;color:#888">Clear</button>':'')
+    + '<a href="#" onclick="downloadRepTemplate();return false" style="font-size:11px;color:#0D6E94">&#8595; Download template</a>'
+    + '</div>'
+    + '<div class="rep-filter-bar"><div id="rep-filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Filter:</span>'
+    + '<button class="rfchip fchip'+(activeRepFilters.size===0?' active':'')+'" data-filter="all" onclick="toggleRepChip(this)">All</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('inmarket')?' active':'')+'" data-filter="inmarket" onclick="toggleRepChip(this)">🟢 IN MARKET</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('qualify')?' active':'')+'" data-filter="qualify" onclick="toggleRepChip(this)">🟡 QUALIFY</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('has1p')?' active':'')+'" data-filter="has1p" onclick="toggleRepChip(this)">Has 1P</button>'
+    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Signal:</span>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('sigA')?' active':'')+'" data-filter="sigA" onclick="toggleRepChip(this)">A</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('sigB')?' active':'')+'" data-filter="sigB" onclick="toggleRepChip(this)">B</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('sigC')?' active':'')+'" data-filter="sigC" onclick="toggleRepChip(this)">C</button>'
+    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Tier:</span>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('t1')?' active':'')+'" data-filter="t1" onclick="toggleRepChip(this)">T1</button>'
+    + '<button class="rfchip fchip'+(activeRepFilters.has('t2')?' active':'')+'" data-filter="t2" onclick="toggleRepChip(this)">T2</button>'
+    + '</div></div>';
+
+  for(const ae of sortedAEs){
+    const accts = groups[ae];
+    const t1 = accts.filter(a=>a.lh_tier==='1').length;
+    const sigA = accts.filter(a=>a.signal==='A').length;
+    const inMkt = accts.filter(a=>a.hasInMarket).length;
+    const with1p = accts.filter(a=>a.ob1p_score!=null).length;
+
+    out += '<div style="margin-bottom:1.75rem">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem;padding-bottom:.4rem;border-bottom:2px solid #E5E5E5">'
+      + '<span style="font-size:14px;font-weight:700">'+ae+'</span>'
+      + '<span style="font-size:11px;color:#666">'+accts.length+' accounts'
+      + (with1p>0?' &middot; <span style="color:#E8560A;font-weight:600">'+with1p+' with 1P</span>':'')
+      + (t1>0?' &middot; <span style="color:#1A7F3C;font-weight:600">T1: '+t1+'</span>':'')
+      + (sigA>0?' &middot; Signal A: '+sigA:'')
+      + (inMkt>0?' &middot; <span style="color:#1B5E20;font-weight:600">IN MARKET: '+inMkt+'</span>':'')
+      + '</span></div>'
+      + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem">';
+
+    for(const a of accts){
+      const lhC = LH_TIER_COLORS[a.lh_tier];
+      const idx = accounts.indexOf(a);
+      const has1p = a.ob1p_score != null;
+      const cardStyle = has1p
+        ? 'background:#FFF;border:.5px solid #C3E6CB;border-left:3px solid #E8560A;border-radius:8px;padding:.7rem;cursor:pointer'
+        : 'background:#FFF;border:.5px solid #E5E5E5;border-radius:8px;padding:.7rem;cursor:pointer';
+
+      // ZTN use case chips
+      let ucChips = '';
+      if(a.ztn){
+        for(const [uc,d] of Object.entries(a.ztn)){
+          const pct = Math.round((d.pts/d.max)*100);
+          const short = uc==='Unified Cloud Network Fabric'?'UCNF'
+            :uc==='Zero Trust Network Segmentation'?'ZT Seg'
+            :uc==='Secure Third-Party & External Access'?'3rd Party'
+            :'E2E Enc';
+          const cc = pct>=60?'#0D6E94':pct>=30?'#5C8A9A':'#AAA';
+          const cb = pct>=60?'#E0F4FF':pct>=30?'#F0F8FF':'#F5F5F5';
+          const hasIM = a.intentByUC&&a.intentByUC['ztn|'+uc]&&a.intentByUC['ztn|'+uc].badge==='IN MARKET';
+          ucChips += '<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:'+cb+';color:'+cc+';white-space:nowrap'+(hasIM?';outline:1px solid #A5D6A7':'')+'">'
+            +short+' '+d.pts+(hasIM?' &#9733;':'')+'</span>';
+        }
+      }
+
+      // Cloud badge
+      let cloudBadge = '';
+      if(a.cloudMat&&a.cloudMat.cloudProducts>0){
+        const csp = [a.cloudMat.aws>0?'AWS':'',a.cloudMat.azure>0?'Azure':'',a.cloudMat.gcp>0?'GCP':''].filter(Boolean).join('+');
+        const pct = Math.round((a.cloudMat.cloudPct||0)*100);
+        cloudBadge = '<span style="font-size:9px;color:#555;padding:1px 5px;border-radius:6px;background:#F5F5F5;border:1px solid #EEE">&#9729; '+pct+'% '+csp+'</span> ';
+      }
+
+      // Intent badge
+      const intentBadge = a.hasInMarket
+        ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7">IN MARKET</span> '
+        : a.hasQualify
+        ? '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FFF8E1;color:#E65100;border:1px solid #FFE082">QUALIFY</span> '
+        : '';
+
+      // Signal badge
+      const sc = a.signal||'D';
+      const scol = sc==='A'?'#155724':sc==='B'?'#856404':'#888';
+      const sbg = sc==='A'?'#D4EDDA':sc==='B'?'#FFF3CD':'#F5F5F5';
+
+      out += '<div class="ae-card" onclick="selAcct('+idx+')" style="'+cardStyle+'">'
+        + '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:.35rem">'
+        + '<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+a.name+'</div>'
+        + '<div style="font-size:10px;color:#888;margin-top:1px">'+(a.ind||'')+(a.rev?' &middot; '+a.rev:'')+'</div></div>'
+        + '<span style="font-size:14px;font-weight:700;color:'+lhC+';margin-left:6px;flex-shrink:0">'+a.lh_sc+'<span style="font-size:9px;font-weight:400"> T'+a.lh_tier+'</span></span>'
+        + '</div>'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:.4rem">'
+        + cloudBadge+intentBadge
+        + '<span style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:'+sbg+';color:'+scol+'">Sig '+sc+'</span>'
+        + (has1p?'<span style="font-size:9px;padding:1px 5px;border-radius:6px;background:#FFF8F5;color:#E8560A;border:1px solid #FFCC80">1P: '+Math.round(a.ob1p_score)+'</span>':'')
+        + '</div>'
+        + '<div style="display:flex;gap:3px;flex-wrap:wrap">'+ucChips+'</div>'
+        + '</div>';
+    }
+    out += '</div></div>';
+  }
+  el.innerHTML = out;
+}
+function swTab(t,ev){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));ev.target.classList.add('active');
+  document.getElementById('taccts').style.display=t==='accts'?'block':'none';
+  document.getElementById('trep').style.display=t==='rep'?'block':'none';
+  document.getElementById('tdist').style.display=t==='dist'?'block':'none';
+  document.getElementById('tkey').style.display=t==='key'?'block':'none';
+  if(t==='key') renderKey();
+  if(t==='rep') renderRep();
+}
+
+
+function openMethodology(){
+  // Update live status for each source
+  const hgLoaded = rawAccounts.length > 0;
+  const ob1pCount = loadedFiles.ob1p.reduce((s,f)=>s+f.matches,0);
+  const ziCount   = (loadedFiles.zi||[]).reduce((s,f)=>s+f.matches,0);
+  const hgiCount  = (loadedFiles.hgi||[]).reduce((s,f)=>s+f.matches,0);
+  const active = [hgLoaded, ob1pCount>0, ziCount>0, hgiCount>0].filter(Boolean).length;
+
+  function setStatus(id, loaded, detail){
+    const el = document.getElementById(id);
+    if(!el) return;
+    if(loaded){
+      el.innerHTML = `<span style="color:#1A7F3C;font-weight:600">✓ Active</span><br><span style="font-size:10px;color:#555">${detail}</span>`;
+    } else {
+      el.innerHTML = `<span style="color:#B87000;font-weight:600">⚠ Not loaded</span>`;
+    }
+  }
+
+  setStatus('m-status-hg',  hgLoaded,    `${rawAccounts.length} accounts · ${Object.keys(loadedFiles).length ? '' : ''}${accounts.filter(a=>a.insts?.length>0).length} with install data`);
+  setStatus('m-status-ob1p', ob1pCount>0, `${ob1pCount} accounts · ${loadedFiles.ob1p.length} file${loadedFiles.ob1p.length!==1?'s':''} loaded`);
+  setStatus('m-status-zi',   ziCount>0,   `${ziCount} accounts · ${(loadedFiles.zi||[]).length} file${(loadedFiles.zi||[]).length!==1?'s':''} loaded`);
+  setStatus('m-status-hgi',  hgiCount>0,  `${hgiCount} accounts · ${(loadedFiles.hgi||[]).length} file${(loadedFiles.hgi||[]).length!==1?'s':''} loaded`);
+
+  // Update summary text
+  const summary = document.getElementById('m-lh-summary');
+  if(summary){
+    const names = [];
+    if(hgLoaded)    names.push('HG Fit (②)');
+    if(ob1pCount>0) names.push('OBS First-Party (①)');
+    if(ziCount>0)   names.push('ZoomInfo Intent (③)');
+    if(hgiCount>0)  names.push('HG Intent (④)');
+    const srcText = names.length > 0
+      ? `Currently active: ${names.join(', ')}. ${4-active} source${4-active!==1?'s':''} still to add.`
+      : 'No data loaded yet.';
+    summary.textContent = `The Lighthouse score combines up to four data sources. ZTN drives the HG Fit input (75% ZTN / 25% ZTW) — reflecting that OBS's connectivity relationship is the natural entry point for the Zero Trust for Networking motion. ${srcText} When additional sources are added, weights rebalance automatically — no structural changes required.`;
+  }
+
+  document.getElementById('overlay').classList.add('open');
+}
+function closeMethodology(){document.getElementById('overlay').classList.remove('open');}
+
+const WORKER_CODE = "\nconst XLSX_URL = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';\nimportScripts(XLSX_URL);\n\nself.onmessage = function(e){\n  const {buffer, fname} = e.data;\n  try {\n    const arr = new Uint8Array(buffer);\n    const peek = XLSX.read(arr, {type:'array', bookSheets:true});\n    const names = peek.SheetNames || [];\n    const isAE = names.some(n=>n.toLowerCase().includes('account summary')) ||\n                 names.some(n=>n.toLowerCase().includes('interview'));\n    if(isAE){\n      const sn = names.find(n=>n.toLowerCase().includes('account summary')) || names[0];\n      const wb = XLSX.read(arr, {type:'array', sheets:sn, sheetRows:50});\n      const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1});\n      const accounts = [];\n      for(const row of rows){\n        const nm = String(row[1]||'').trim();\n        const sc = parseFloat(row[12]);\n        if(nm && !isNaN(sc) && sc>=0 && sc<=100) accounts.push({name:nm, score:sc});\n      }\n      self.postMessage({type:'ob1p', fname, accounts});\n    } else {\n      const sn = names.find(n=>n.toLowerCase().includes('spend'));\n      const in_ = names.find(n=>n.toLowerCase().includes('install'));\n      if(!sn||!in_){ self.postMessage({type:'error', fname, msg:'Not an HG file. Sheets: '+names.join(', ')}); return; }\n      const wb = XLSX.read(arr, {type:'array'});\n\n      // \u2500\u2500 Spend sheet \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const sr = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1});\n      // Auto-detect header row: find row where col 0 = 'Company Name'\n      let spendHdrRow = 2;\n      for(let i=0;i<Math.min(5,sr.length);i++){\n        if(sr[i] && String(sr[i][0]||'').toLowerCase().includes('company')){spendHdrRow=i;break;}\n      }\n      const sh = sr[spendHdrRow];\n      const spend = {};\n      for(let i=spendHdrRow+1;i<sr.length;i++){\n        const row=sr[i]; const nm=String(row[0]||'').trim(); if(!nm) continue;\n        const o={}; sh.forEach((h,c)=>{if(h)o[h]=row[c];}); spend[nm]=o;\n      }\n\n      // \u2500\u2500 Cloud Maturity (cols 70-79 in Spend sheet) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const cloudMat = {};\n      for(let i=spendHdrRow+1;i<sr.length;i++){\n        const row=sr[i]; const nm=String(row[0]||'').trim(); if(!nm) continue;\n        cloudMat[nm] = {\n          allProducts:   parseFloat(row[70])||0,\n          cloudProducts: parseFloat(row[71])||0,\n          cloudPct:      parseFloat(row[72])||0,\n          newCloud:      parseFloat(row[74])||0,\n          delta:         parseFloat(row[76])||0,\n          aws:           parseFloat(row[77])||0,\n          azure:         parseFloat(row[78])||0,\n          gcp:           parseFloat(row[79])||0,\n        };\n      }\n\n      // \u2500\u2500 Installs sheet \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const ir = XLSX.utils.sheet_to_json(wb.Sheets[in_], {header:1});\n      let instHdrRow = 1;\n      for(let i=0;i<Math.min(5,ir.length);i++){\n        if(ir[i] && String(ir[i][0]||'').toLowerCase().includes('company')){instHdrRow=i;break;}\n      }\n      const ih = ir[instHdrRow];\n      const installs = {};\n      for(let i=instHdrRow+1;i<ir.length;i++){\n        const row=ir[i]; const nm=String(row[0]||'').trim(); if(!nm) continue;\n        if(!installs[nm]) installs[nm]=[];\n        const o={}; ih.forEach((h,c)=>{if(h)o[h]=row[c];});\n        installs[nm].push({\n          prod: o['Product Name']||'',\n          int:  parseFloat(o['Intensity'])||0,\n          c2:   o['Product Category Level 2']||'',\n          c3:   o['Product Category Level 3']||'',\n          op:   !!(o['Product On Premise Flag']),\n          cloud:!!(o['Product Web Cloud Based Flag']),\n          dateVerified: o['Date Last Verified']||null\n        });\n      }\n\n      // \u2500\u2500 Intent sheet (optional) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n      const intentSheetName = names.find(n=>n.toLowerCase().includes('intent'));\n      const intentMap = {};\n      if(intentSheetName){\n        const itr = XLSX.utils.sheet_to_json(wb.Sheets[intentSheetName], {header:1});\n        let intentHdrRow = 1;\n        for(let i=0;i<Math.min(3,itr.length);i++){\n          if(itr[i] && String(itr[i][0]||'').toLowerCase().includes('company')){intentHdrRow=i;break;}\n        }\n        for(let i=intentHdrRow+1;i<itr.length;i++){\n          const row=itr[i]; const nm=String(row[0]||'').trim(); if(!nm) continue;\n          if(!intentMap[nm]) intentMap[nm]=[];\n          const topic = String(row[66]||'').trim();\n          const strength = parseFloat(row[64])||0;\n          if(topic && strength > 0){\n            intentMap[nm].push({\n              topic, strength,\n              journey: String(row[69]||'').trim(),\n              date:    String(row[73]||'').trim(),\n            });\n          }\n        }\n      }\n\n      self.postMessage({type:'hg', fname, spend, installs, cloudMat, intent:intentMap});\n    }\n  } catch(err){ self.postMessage({type:'error', fname, msg:err.message}); }\n};\n";
+
+let xlsxWorker = null;
+
+function getWorker(){
+  if(xlsxWorker) return xlsxWorker;
+  const blob = new Blob([WORKER_CODE], {type:'application/javascript'});
+  xlsxWorker = new Worker(URL.createObjectURL(blob));
+  xlsxWorker.onmessage = function(e){
+    const d = e.data;
+    if(d.type === 'ob1p'){
+      handleOb1pResult(d);
+    } else if(d.type === 'hg'){
+      handleHGResult(d);
+    } else if(d.type === 'intent'){
+      // Determine source from which button triggered the upload
+      handleIntentResult({...d, source: pendingIntentSource || 'zi'});
+      pendingIntentSource = null;
+    } else if(d.type === 'error'){
+      logFile(`Error in ${d.fname}: ${d.msg}`, 'err');
+      toast(d.msg, 'warn', 6000);
+      console.error(d.msg);
+    }
+  };
+  xlsxWorker.onerror = function(e){
+    logFile('Worker error: '+e.message, 'err');
+    console.error(e);
+  };
+  return xlsxWorker;
+}
+
+function handleFile(file){
+  if(!file) return;
+  logFile(`Reading ${file.name}…`, 'warn');
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    getWorker().postMessage({buffer: ev.target.result, fname: file.name}, [ev.target.result]);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+
+function handleOb1pResult(d){
+  const {fname, accounts: acctList} = d;
+  let newMatches = 0;
+  // Derive AE name from filename — strip known suffixes
+  const ae = fname
+    .replace(/\.xlsx?$/i,'')
+    .replace(/_Aviatrix_Questions.*/i,'')
+    .replace(/_Questions.*/i,'')
+    .replace(/_/g,' ')
+    .trim();
+  for(const {name:nm, score:sc} of acctList){
+    const wasNew = ob1pMap[nm] == null;
+    ob1pMap[nm] = sc;
+    ob1pMap[normName(nm)] = sc;
+    ob1pMap[fuzzyName(nm)] = sc;
+    const tier = sc>=75?'Tier 1 — Priority':sc>=55?'Tier 2 — Qualify':sc>=35?'Tier 3 — Nurture':'Tier 4 — Deprioritize';
+    ob1pDetailMap[nm] = {score:sc, ae, tier};
+    ob1pDetailMap[normName(nm)] = {score:sc, ae, tier};
+    ob1pDetailMap[fuzzyName(nm)] = {score:sc, ae, tier};
+    if(wasNew) newMatches++;
+  }
+  loadedFiles.ob1p.push({name:fname, matches:newMatches});
+  const hgLoaded = rawAccounts.length > 0;
+  const totalAcctNames = loadedFiles.ob1p.reduce((s,f)=>s+f.matches,0);
+
+  if(hgLoaded){
+    rescoreAll();
+    const totalMatched = rawAccounts.filter(a=>ob1pMap[a.name]!=null||ob1pMap[a.name_norm]!=null).length;
+    updateOb1pBar(totalMatched, rawAccounts.length);
+    logFile(`${fname} · +${newMatches} accounts · OBS First-Party covers ${totalMatched}/${rawAccounts.length}`, 'ok');
+    document.getElementById('status').textContent=`OBS First-Party updated · ${totalMatched}/${rawAccounts.length} accounts covered · ${loadedFiles.ob1p.length} file${loadedFiles.ob1p.length>1?'s':''} loaded`;
+  } else {
+    updateOb1pBar(totalAcctNames, '?');
+    document.getElementById('uz-icon').textContent='📋';
+    document.getElementById('uz-title').textContent='AE workbook loaded — now add the HG Enrichment file';
+    document.getElementById('uz-sub').textContent=`${fname} · ${newMatches} accounts queued · drop the HG file here to score`;
+    const wb2 = document.getElementById('waiting-banner');
+    if(wb2) wb2.classList.add('show');
+    const wt = document.getElementById('waiting-text');
+    if(wt) wt.textContent=`${loadedFiles.ob1p.length} AE file${loadedFiles.ob1p.length>1?'s':''} loaded · ${totalAcctNames} accounts queued · load HG Enrichment file to run scores`;
+    logFile(`${fname} · ${newMatches} accounts queued · load HG Enrichment file next`, 'warn');
+  }
+}
+
+function handleIntentResult(d){
+  const {fname, source, accounts: acctList} = d;
+  // source = 'zi' or 'hgi'
+  const map = source === 'zi' ? ziMap : hgiMap;
+  const srcId = source === 'zi' ? 'src-zi' : 'src-hgi';
+  const iconId = source === 'zi' ? 'src-zi-icon' : 'src-hgi-icon';
+  const subId  = source === 'zi' ? 'src-zi-sub'  : 'src-hgi-sub';
+  const btnId  = source === 'zi' ? 'btn-zi'       : 'btn-hgi';
+  const weight = source === 'zi' ? '20%' : '15%';
+  let newMatches = 0;
+  for(const {name:nm, score:sc} of acctList){
+    const wasNew = map[nm] == null;
+    map[nm] = sc;
+    map[normName(nm)] = sc;
+    if(wasNew) newMatches++;
+  }
+  loadedFiles[source] = loadedFiles[source] || [];
+  loadedFiles[source].push({name:fname, matches:newMatches});
+  const hgLoaded = rawAccounts.length > 0;
+  if(hgLoaded){
+    rescoreAll();
+    const totalMatched = rawAccounts.filter(a=>map[a.name]!=null||map[a.name_norm]!=null).length;
+    const src = document.getElementById(srcId);
+    if(src){ src.classList.remove('pending'); src.classList.add('active'); }
+    const icon = document.getElementById(iconId); if(icon) icon.textContent='✓';
+    const sub  = document.getElementById(subId);
+    if(sub) sub.textContent=`${totalMatched}/${rawAccounts.length} accounts · ${loadedFiles[source].length} file${loadedFiles[source].length>1?'s':''} loaded`;
+    const btn  = document.getElementById(btnId);
+    if(btn){ btn.classList.add('loaded'); btn.textContent='Add more'; }
+    logFile(`${fname} · +${newMatches} accounts · ${source==='zi'?'ZoomInfo Intent':'HG Intent'} covers ${totalMatched}/${rawAccounts.length}`, 'ok');
+    document.getElementById('status').textContent=`${source==='zi'?'ZoomInfo':'HG'} Intent updated · ${totalMatched}/${rawAccounts.length} accounts · scores recalculated`;
+    autoSave();
+  } else {
+    const src = document.getElementById(srcId);
+    if(src){ src.classList.remove('pending'); src.classList.add('active'); }
+    const icon = document.getElementById(iconId); if(icon) icon.textContent='✓';
+    const sub  = document.getElementById(subId);
+    if(sub) sub.textContent=`${newMatches} accounts queued · load HG file to score`;
+    logFile(`${fname} · ${newMatches} accounts queued · load HG Enrichment to score`, 'warn');
+  }
+}
+
+function handleHGResult(d){
+  const {fname, spend:sm, installs:im, cloudMat:cm={}, intent:intentMap={}} = d;
+  rawAccounts = Object.keys(sm).map(nm=>{
+    const s=sm[nm]||{};
+    return{name:nm, name_norm:normName(nm), ind:s['Industry']||s['NAICS Industry']||'',
+           emp:String(s['Employee Band']||s['Total Employees']||''),
+           rev:s['Revenue Band']||'', cty:s['Country']||'',
+           itb:parseFloat(s['IT Budget Total'])||0, spend:s, insts:im[nm]||[],
+           cloudMat:cm[nm]||null, intentTopics:intentMap[nm]||[]};
+  });
+  accounts = rawAccounts.map(a=>{
+    const ob1p = ob1pMap[a.name]??ob1pMap[a.name_norm]??ob1pMap[fuzzyName(a.name)]??null;
+    const ob1pDet = ob1pDetailMap[a.name]??ob1pDetailMap[a.name_norm]??ob1pDetailMap[fuzzyName(a.name)]??null;
+    const enriched2={...a, ob1p_score:ob1p, ob1p_detail:ob1pDet, zi_intent_score:ziMap[a.name]??ziMap[a.name_norm]??null, hg_intent_score:hgiMap[a.name]??hgiMap[a.name_norm]??null};
+    return{...enriched2, ...scoreAcct(enriched2)};
+  });
+  document.getElementById('up').style.display='none';
+  document.getElementById('main-ui').style.display='block';
+  const wb2 = document.getElementById('waiting-banner');
+  if(wb2) wb2.classList.remove('show');
+  renderMet();renderTbl();renderDist();
+  const withInst = Object.keys(im).filter(n=>sm[n]).length;
+  document.getElementById('src-hg-sub').textContent=`${accounts.length} accounts · ${withInst} with installs`;
+  const ob1pCovered = rawAccounts.filter(a=>ob1pMap[a.name]!=null||ob1pMap[a.name_norm]!=null).length;
+  if(ob1pCovered>0){
+    updateOb1pBar(ob1pCovered, accounts.length);
+    logFile(`HG loaded · ${accounts.length} accounts scored · OBS First-Party applied to ${ob1pCovered} accounts`, 'ok');
+    document.getElementById('status').textContent=`${accounts.length} accounts scored · OBS First-Party covers ${ob1pCovered} accounts`;
+  } else {
+    logFile(`HG loaded · ${accounts.length} accounts scored · ${withInst} with install data`, 'ok');
+    document.getElementById('status').textContent=`${accounts.length} accounts scored · ${withInst} with install data`;
+  }
+  document.getElementById('btn-save').style.display='block';
+  document.getElementById('btn-save-as').style.display='block';
+  addChangeLog('hg-loaded', `${fname} · ${accounts.length} accounts`);
+  autoSave();
+}
+
+let pendingIntentSource = null;
+document.getElementById('file-input').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+document.getElementById('file-input-ob1p').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+document.getElementById('file-input-zi').addEventListener('change',e=>{if(e.target.files[0]){pendingIntentSource='zi';handleFile(e.target.files[0]);}});
+document.getElementById('file-input-hgi').addEventListener('change',e=>{if(e.target.files[0]){pendingIntentSource='hgi';handleFile(e.target.files[0]);}});
+document.getElementById('file-input-rep').addEventListener('change',e=>{if(e.target.files[0])handleRepFile(e.target.files[0]);});
+const dz=document.getElementById('dz');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.background='#F0F8FF';});
+dz.addEventListener('dragleave',()=>dz.style.background='');
+dz.addEventListener('drop',e=>{e.preventDefault();dz.style.background='';if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePanel();closeMethodology();}});
+document.getElementById('file-input-session').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try{
+      const data = JSON.parse(ev.target.result);
+      const ok = restoreSession(data);
+      if(!ok) toast('Session file appears empty or invalid', 'warn');
+    } catch(err){ toast('Could not read session file: '+err.message, 'err', 5000); }
+  };
+  r.readAsText(file);
+  e.target.value = '';
+});
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+
+// ── SESSION SAVE / RESTORE ───────────────────────────────────────────────────
+function sessionPayload(){
+  return {
+    version:1, modelVersion:MODEL_VERSION, sessionName:sessionName||null,
+    savedAt:new Date().toISOString(), changeLog, rawAccounts,
+    ob1pMap, ob1pDetailMap, ziMap, hgiMap, loadedFiles,
+    accounts:accounts.map(a=>({
+      name:a.name,name_norm:a.name_norm,ind:a.ind,emp:a.emp,rev:a.rev,cty:a.cty,itb:a.itb,
+      ob1p_score:a.ob1p_score,ob1p_detail:a.ob1p_detail,zi_intent_score:a.zi_intent_score,hg_intent_score:a.hg_intent_score,
+      lh_sc:a.lh_sc,lh_tier:a.lh_tier,ztw_sc:a.ztw_sc,ztw_ti:a.ztw_ti,ztw_tp:a.ztw_tp,
+      ztn_sc:a.ztn_sc,ztn_ti:a.ztn_ti,ztn_tp:a.ztn_tp,lh_available:a.lh_available,lh_sources:a.lh_sources,
+      hgFit_sc:a.hgFit_sc,ztw:a.ztw,ztn:a.ztn,ztw_firmo:a.ztw_firmo,ztn_firmo:a.ztn_firmo,
+      insts:a.insts,spend:a.spend,cloudMat:a.cloudMat,intentTopics:a.intentTopics,
+      signal:a.signal,signal_dual:a.signal_dual,hasInMarket:a.hasInMarket,hasQualify:a.hasQualify,
+      intentByUC:a.intentByUC,confidence_pct:a.confidence_pct,confidence_fired:a.confidence_fired,confidence_total:a.confidence_total,
+    }))
+  };
+}
+
+function saveSession(){
+  if(!accounts.length){toast('Nothing to save — load data first','warn');return;}
+  const payload=JSON.stringify(sessionPayload(),null,0);
+  const blob=new Blob([payload],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const el=document.createElement('a');
+  const fname=sessionName?`OBS_${sessionName.replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().slice(0,10)}.json`:`OBS_Propensity_Session_${new Date().toISOString().slice(0,10)}.json`;
+  el.href=url;el.download=fname;el.click();URL.revokeObjectURL(url);
+  lastSavedPayload=payload;setDirty(false);
+  document.getElementById('session-status').textContent=`Saved · ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  logFile(`Session saved · ${accounts.length} accounts · ${fname}`,'ok');
+}
+
+function saveSessionAs(){
+  if(!accounts.length){toast('Nothing to save — load data first','warn');return;}
+  const name=prompt('Save session as:',sessionName||`OBS ${new Date().toLocaleDateString()}`);
+  if(!name)return;
+  sessionName=name.trim();addChangeLog('session-named',`Named "${sessionName}"`);saveSession();
+}
+
+function autoSave(){
+  if(!accounts.length)return;
+  try{
+    const payload=JSON.stringify(sessionPayload());
+    localStorage.setItem('obs_propensity_session',payload);
+    if(!lastSavedPayload)lastSavedPayload=payload;
+    setDirty(payload!==lastSavedPayload);
+    document.getElementById('session-status').textContent=`Auto-saved · ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+  }catch(e){console.warn('Auto-save failed:',e);}
+}
+
+function setDirty(isDirty){const el=document.getElementById('dirty-indicator');if(el)el.style.display=isDirty?'inline':'none';}
+function addChangeLog(action,detail){changeLog.push({ts:new Date().toISOString(),action,detail});if(changeLog.length>50)changeLog=changeLog.slice(-50);}
+
+function restoreSession(data){
+  try{
+    rawAccounts=data.rawAccounts||[];ob1pMap=data.ob1pMap||{};ob1pDetailMap=data.ob1pDetailMap||{};
+    ziMap=data.ziMap||{};hgiMap=data.hgiMap||{};
+    loadedFiles.ob1p=(data.loadedFiles||{}).ob1p||[];loadedFiles.zi=(data.loadedFiles||{}).zi||[];loadedFiles.hgi=(data.loadedFiles||{}).hgi||[];
+    changeLog=data.changeLog||[];sessionName=data.sessionName||null;
+    if(!rawAccounts.length)return false;
+    accounts=rawAccounts.map(a=>{
+      const ob1p=ob1pMap[a.name]??ob1pMap[a.name_norm]??ob1pMap[fuzzyName(a.name)]??null;
+      const ob1pDet=ob1pDetailMap[a.name]??ob1pDetailMap[a.name_norm]??ob1pDetailMap[fuzzyName(a.name)]??null;
+      const zi=ziMap[a.name]??ziMap[a.name_norm]??null;
+      const hgi=hgiMap[a.name]??hgiMap[a.name_norm]??null;
+      const enriched={...a,ob1p_score:ob1p,ob1p_detail:ob1pDet,zi_intent_score:zi,hg_intent_score:hgi};
+      return{...enriched,...scoreAcct(enriched)};
+    });
+    document.getElementById('up').style.display='none';
+    document.getElementById('main-ui').style.display='block';
+    document.getElementById('btn-save').style.display='block';
+    document.getElementById('btn-save-as').style.display='block';
+    const hgSub=document.getElementById('src-hg-sub');
+    if(hgSub)hgSub.textContent=`${rawAccounts.length} accounts restored from session`;
+    const ob1pCount=loadedFiles.ob1p.reduce((s,f)=>s+f.matches,0);
+    if(ob1pCount>0)updateOb1pBar(ob1pCount,rawAccounts.length);
+    renderMet();renderTbl();renderDist();setTimeout(initResizableCols,50);
+    const ts=data.savedAt?new Date(data.savedAt).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'unknown';
+    const savedVersion=data.modelVersion||'1.0';
+    const versionNote=savedVersion!==MODEL_VERSION?` · model updated v${savedVersion}→v${MODEL_VERSION}`:'';
+    const hasIntent=rawAccounts.some(a=>a.intentTopics&&a.intentTopics.length>0);
+    const hasCloudMat=rawAccounts.some(a=>a.cloudMat&&a.cloudMat.cloudProducts>0);
+    const ob1pCount2=loadedFiles.ob1p.reduce((s,f)=>s+f.matches,0);
+    const dataNote=[`${accounts.length} accounts`,ob1pCount2>0?`OBS 1P: ${ob1pCount2}`:'OBS 1P: not loaded',hasIntent?'Intent: ✓':'Intent: ✗ — reload HG v3',hasCloudMat?'Cloud maturity: ✓':'Cloud maturity: ✗ — reload HG v3'].join(' · ');
+    document.getElementById('session-status').textContent=`Restored · ${ts}${versionNote}`;
+    document.getElementById('status').textContent=dataNote;
+    logFile(`Session restored · ${dataNote}${versionNote}`,'ok');
+    lastSavedPayload=JSON.stringify(data);setDirty(false);
+    return true;
+  }catch(e){console.error('Restore failed:',e);return false;}
+}
+
+function loadSessionFile(){document.getElementById('file-input-session').click();}
+
+function clearSession(){
+  localStorage.removeItem('obs_propensity_session');
+  accounts=[];rawAccounts=[];ob1pMap={};ob1pDetailMap={};ziMap={};hgiMap={};
+  loadedFiles.ob1p=[];loadedFiles.zi=[];loadedFiles.hgi=[];
+  document.getElementById('up').style.display='block';
+  document.getElementById('main-ui').style.display='none';
+  document.getElementById('file-log').innerHTML='';
+  document.getElementById('session-status').textContent='';
+  document.getElementById('btn-save').style.display='none';
+  document.getElementById('btn-save-as').style.display='none';
+  document.getElementById('dirty-indicator').style.display='none';
+  changeLog=[];sessionName=null;lastSavedPayload=null;
+  logFile('Session cleared — upload files to start fresh','warn');
+}
+
+window.addEventListener('load',function(){
+  fetch('data.json')
+    .then(r=>{if(!r.ok)throw new Error('no data.json');return r.json();})
+    .then(data=>{
+      if(!data||!data.accounts||!data.accounts.length)throw new Error('empty');
+      const restored=restoreSession(data);
+      if(restored){
+        const ts=data.savedAt?new Date(data.savedAt).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'unknown';
+        const hasIntentD=(data.rawAccounts||[]).some(a=>a.intentTopics&&a.intentTopics.length>0);
+        const hasCloudD=(data.rawAccounts||[]).some(a=>a.cloudMat&&a.cloudMat.cloudProducts>0);
+        const dNote=[data.accounts.length+' accounts',hasIntentD?'Intent: ✓':'Intent: ✗',hasCloudD?'Cloud maturity: ✓':'Cloud maturity: ✗'].join(' · ');
+        logFile('data.json loaded · '+dNote,hasIntentD?'ok':'warn');
+        document.getElementById('session-status').textContent='Published '+ts;
+        document.getElementById('status').textContent=dNote;
+      }
+    })
+    .then(()=>{
+      // After data.json loads, fetch rep assignments
+      return fetch('OBS_Rep_Assignments.csv')
+        .then(r=>{ if(!r.ok) throw new Error('no rep file'); return r.text(); })
+        .then(csv=>{
+          const lines = csv.trim().split('\n').slice(1); // skip header
+          let loaded = 0;
+          for(const line of lines){
+            const parts = line.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+            const nm = parts[0], rep = parts[1], terr = parts[2]||'NAM';
+            if(nm && rep){
+              repMap[nm] = {rep, territory:terr};
+              repMap[normName(nm)] = {rep, territory:terr};
+              loaded++;
+            }
+          }
+          if(loaded > 0){
+            logFile('Rep assignments loaded · '+loaded+' accounts', 'ok');
+            renderTbl();
+            if(document.getElementById('trep') && document.getElementById('trep').style.display!=='none') renderRep();
+          }
+        })
+        .catch(()=>{}); // silent if no rep file
+    })
+    .catch(()=>{
+      try{
+        const saved=localStorage.getItem('obs_propensity_session');
+        if(saved){
+          const data=JSON.parse(saved);
+          if(data&&data.accounts&&data.accounts.length>0){
+            const restored=restoreSession(data);
+            if(restored){
+              const ts=data.savedAt?new Date(data.savedAt).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'unknown';
+              const banner=document.createElement('div');
+              banner.style.cssText='background:#E0F4FF;border:1px solid #90CAF9;border-radius:7px;padding:.5rem .85rem;font-size:12px;color:#0D47A1;display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem';
+              banner.innerHTML='<span style="flex:1">↩ Local session restored ('+data.accounts.length+' accounts · saved '+ts+')</span><button onclick="clearSession()" style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid #90CAF9;background:none;cursor:pointer;color:#0D47A1">Start fresh</button>';
+              const log=document.getElementById('file-log');
+              if(log)log.appendChild(banner);
+            }
+          }
+        }
+      }catch(e){console.warn('localStorage restore failed:',e);}
+    });
+});
+
+
+function initResizableCols(){
+  const table = document.querySelector('#accounts-table');
+  if(!table) return;
+  const cols = table.querySelectorAll('thead th');
+  cols.forEach((th, i) => {
+    if(i === cols.length - 1) return;
+    if(th.querySelector('.resizer')) return;
+    const r = document.createElement('div');
+    r.className = 'resizer';
+    th.appendChild(r);
+    let startX, startW;
+    r.addEventListener('mousedown', e => {
+      startX = e.pageX; startW = th.offsetWidth;
+      r.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      const onMove = ev => {
+        const newW = Math.max(60, startW + (ev.pageX - startX));
+        th.style.width = newW + 'px';
+        const cols2 = table.querySelectorAll('colgroup col');
+        if(cols2[i]) cols2[i].style.width = newW + 'px';
+      };
+      const onUp = () => {
+        r.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+    });
+  });
+}
+
+let toastTimer=null;
+function toast(msg, type='info', duration=3500){
+  const el=document.getElementById('toast-el');
+  if(!el) return;
+  el.textContent=msg;
+  el.className=`toast show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'), duration);
+}
+
+function logFile(msg, type){
+  // Persistent file log entry — always visible, never disappears
+  const log=document.getElementById('file-log');
+  if(!log) return;
+  const colors={ok:'#D4EDDA',warn:'#FFF3CD',err:'#F8D7DA'};
+  const text={ok:'#155724',warn:'#856404',err:'#721c24'};
+  const icons={ok:'✓',warn:'⏳',err:'✗'};
+  const t=type||'ok';
+  const now=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const entry=document.createElement('div');
+  entry.style.cssText=`background:${colors[t]};color:${text[t]};border-radius:6px;padding:.45rem .75rem;font-size:12px;margin-bottom:4px;display:flex;align-items:center;gap:.5rem`;
+  entry.innerHTML=`<span style="font-weight:700">${icons[t]}</span><span style="flex:1">${msg}</span><span style="font-size:10px;opacity:.6">${now}</span>`;
+  log.appendChild(entry);
+}
+</script>
+</body>
+</html>
