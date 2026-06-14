@@ -1142,7 +1142,7 @@ function cloudMatSection(a){
 function ucSections(a,pillar,color){
   const label=pillar==='ztw'?'Zero Trust for Workloads':'Zero Trust for Networking';
   const uc=Object.entries(a[pillar]).map(([uc,d])=>{
-    const pct=Math.round((d.pts/d.max)*100);
+    const pct=Math.round((d.pts/d.max)*100); d.pts=Math.round(d.pts*100)/100;
     const id=pillar+'_'+uc.replace(/\W/g,'_');
     const renderSigRows = (sigs, type) => {
       return sigs.map(s => {
@@ -1878,7 +1878,7 @@ function renderRep(){
           const cb = pct>=60?'#E0F4FF':pct>=30?'#F0F8FF':'#F5F5F5';
           const hasIM = a.intentByUC&&a.intentByUC['ztn|'+uc]&&a.intentByUC['ztn|'+uc].badge==='IN MARKET';
           ucChips += '<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:'+cb+';color:'+cc+';white-space:nowrap'+(hasIM?';outline:1px solid #A5D6A7':'')+'">'
-            +short+' '+d.pts+(hasIM?' &#9733;':'')+'</span>';
+            +short+' '+(Math.round(d.pts*100)/100)+(hasIM?' &#9733;':'')+'</span>';
         }
       }
 
