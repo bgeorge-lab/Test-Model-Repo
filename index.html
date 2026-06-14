@@ -522,7 +522,7 @@ function scoreInst(insts,uc,pl){
       // Simple presence — apply recency multiplier
       const f=insts.find(i=>mkw(i.prod,s.k));
       const rm = f ? recencyMult(f.dateVerified) : 1;
-      const p = f ? Math.round(s.pp * rm * 10)/10 : 0;
+      const p = f ? Math.round(s.pp * rm * 100)/100 : 0;
       pts+=p;
       detail.push({label:s.label,type:'install',prod:f?.prod||null,pts:p,maxPts:s.pp,recency:rm});
     } else if(s.t==='pi'){
@@ -532,14 +532,14 @@ function scoreInst(insts,uc,pl){
         const intv = f.int || 0;
         const rm = recencyMult(f.dateVerified);
         const intRatio = Math.min(1, intv / s.it); // continuous 0–1
-        p = Math.round((s.pp + s.ip * intRatio) * rm * 10) / 10;
+        p = Math.round((s.pp + s.ip * intRatio) * rm * 100) / 100;
         note = `intensity ${intv}/${s.it} (${Math.round(intRatio*100)}%) · recency ${Math.round(rm*100)}%`;
       }
       pts+=p;detail.push({label:s.label,type:'install+intensity',prod:f?.prod||null,intensity:f?.int||null,note,pts:p,maxPts:s.pp+s.ip});
     } else if(s.t==='op'){
       const f=insts.find(i=>mkw(i.prod,s.k)&&i.op);
       const rm = f ? recencyMult(f.dateVerified) : 1;
-      const p = f ? Math.round(s.pp * rm * 10)/10 : 0;
+      const p = f ? Math.round(s.pp * rm * 100)/100 : 0;
       pts+=p;
       detail.push({label:s.label,type:'on-prem',prod:f?.prod||null,pts:p,maxPts:s.pp,recency:rm});
     } else if(s.t==='cat'){
@@ -597,7 +597,7 @@ function scoreAcct(a){
       let ucPts=0;const spendDetail=[];
       for(const s of ss){const v=a.spend?parseFloat(a.spend[s.c])||0:0;const p=spts(v,s);ucPts+=p;spendDetail.push({label:s.label,col:s.c,value:v,pts:p,maxPts:s.p[0],thH:s.h,thM:s.m});}
       const ir=scoreInst(a.insts||[],uc,pl);ucPts+=ir.pts;
-      res[pl][uc]={pts:ucPts,max:MX[pl][uc],spendDetail,installDetail:ir.detail};
+      res[pl][uc]={pts:Math.round(ucPts*100)/100,max:MX[pl][uc],spendDetail,installDetail:ir.detail};
       raw+=ucPts*W[pl][uc];mxR+=MX[pl][uc]*W[pl][uc];
     }
     let sc=mxR>0?Math.round((raw/mxR)*100):0;
@@ -1162,7 +1162,7 @@ function ucSections(a,pillar,color){
         return {fired, html: `<div class="sig-row">
           <span class="sig-name">${s.label}</span>
           <span class="sig-val">${valTxt} <span class="badge ${badgeCls}">${badgeLbl}</span></span>
-          <span class="sig-pts ${fired?'fired':'zero'}">${fired?'+'+s.pts:'0'} pt${s.pts!==1?'s':''}</span>
+          <span class="sig-pts ${fired?'fired':'zero'}">${fired?'+'+Math.round(s.pts*100)/100:'0'} pt${(Math.round(s.pts*100)/100)!==1?'s':''}</span>
         </div>`};
       });
     };
@@ -1191,7 +1191,7 @@ function ucSections(a,pillar,color){
       <div class="uc-header" onclick="toggleUC('${id}')">
         <span class="uc-name">${uc}</span>
         <div class="uc-bw"><div class="uc-b" style="width:${pct}%;background:${color}"></div></div>
-        <span class="uc-pts" style="color:${color}">${d.pts}/${d.max}</span>
+        <span class="uc-pts" style="color:${color}">${Math.round(d.pts*100)/100}/${d.max}</span>
         <span class="chev" id="chev_${id}">▾</span>
       </div>
       <div class="uc-body" id="body_${id}">
