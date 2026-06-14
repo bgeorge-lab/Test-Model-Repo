@@ -998,7 +998,11 @@ function openPanel(a){
         <div class="pscore-num ps-ztn">${a.ztn_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
       </div>
     </div>`;
-  document.getElementById('p-body').innerHTML=ob1pSection(a)+intentSection(a)+cloudMatSection(a)+ucSections(a,'ztn',ZN)+ucSections(a,'ztw',ZW);
+  document.getElementById('p-body').innerHTML=ob1pSection(a)+intentSection(a)+cloudMatSection(a)
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.5rem">'
+    +'<div>'+ucSections(a,'ztn',ZN)+'</div>'
+    +'<div>'+ucSections(a,'ztw',ZW)+'</div>'
+    +'</div>';
   document.getElementById('p-firmo').innerHTML=`
     <span class="fi"><span class="fl">Products installed</span>${(a.insts||[]).length}</span>
     <span class="fi"><span class="fl">Revenue</span>${a.rev||'—'}</span>
@@ -1085,7 +1089,13 @@ function intentSection(a){
     + '</div>'
     + '<div style="padding:.5rem .85rem">'
     + (firedRows || '<div style="font-size:11px;color:#AAA;padding:4px 0">No topics above threshold (' + (40) + ')</div>')
-    + (rawRows ? '<div style="margin-top:6px;padding-top:4px;border-top:.5px solid #EEE"><div style="font-size:9px;font-weight:700;color:#CCC;text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px">Other detected topics (below threshold)</div>' + rawRows + '</div>' : '')
+    + (rawRows ? '<div style="margin-top:6px;padding-top:4px;border-top:.5px solid #EEE">'
+      + '<div onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ri-chev\').textContent=this.nextElementSibling.style.display===\'none\'?\'▸\':\'▾\';" style="cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">'
+      + '<span class="ri-chev" style="font-size:9px;color:#CCC">▸</span>'
+      + '<span style="font-size:9px;font-weight:700;color:#CCC;text-transform:uppercase;letter-spacing:.3px">Other detected topics (below threshold)</span>'
+      + '</div>'
+      + '<div style="display:none">' + rawRows + '</div>'
+      + '</div>' : '')
     + '</div>'
     + '</div>';
 }
@@ -1562,17 +1572,82 @@ function renderKey(){
       <div class="key-note blue"><strong>ZTN leads for OBS.</strong> OBS's connectivity identity maps to the ZTN use cases — UCNF, segmentation, VPN displacement, encryption. ZTW follows after the ZTN foothold is established with a different buyer (security team vs network team).</div>
       <div style="font-size:11px;font-weight:700;color:#0D6E94;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTN — Zero Trust for Networking (primary)</div>
       <div class="uc-grid">
-        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Unified Cloud Network Fabric</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Multi-cloud connectivity fragmentation. Accounts with IaaS spend &gt;$50M + multi-CSP installs + SD-WAN present.</div></div>
-        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Zero Trust Network Segmentation</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Flat network architecture. Cisco ISE, ASA, Check Point, Palo Alto, firewall appliance depth.</div></div>
-        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Secure Third-Party &amp; External Access</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Legacy VPN displacement. Cisco AnyConnect (strongest signal), Ivanti, BeyondTrust, Okta.</div></div>
-        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Enforce E2E Network Encryption</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Unencrypted cloud-to-DC paths. HPE, F5 BIG-IP, Cisco NX-OS, Juniper, VMware on-prem.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Unified Cloud Network Fabric</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 18 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Multi-cloud connectivity fragmentation. SD-WAN (Cisco, Versa, Aryaka, VeloCloud), VMware NSX, cloud interconnect, network infra depth.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Zero Trust Network Segmentation</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Flat network architecture. Cisco ISE, Forescout, ClearPass NAC, ASA, Check Point, Palo Alto, Illumio, Guardicore, firewall depth.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Secure Third-Party &amp; External Access</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 18 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Legacy VPN + ZTNA in-flight. AnyConnect, GlobalProtect, Zscaler ZPA, Cloudflare Access, Cato, CyberArk, Delinea PAM.</div></div>
+        <div class="uc-card ztn"><div style="font-size:11px;font-weight:700">Enforce E2E Network Encryption</div><div style="font-size:10px;color:#888;margin-top:2px">20% · max 18 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Unencrypted cloud-to-DC paths. HPE, F5 BIG-IP, Cisco NX-OS, Juniper, Thales/Entrust HSMs, VMware on-prem.</div></div>
       </div>
       <div style="font-size:11px;font-weight:700;color:#6B2E9E;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTW — Zero Trust for Workloads (expansion)</div>
       <div class="uc-grid">
-        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Prevent Lateral Movement</div><div style="font-size:10px;color:#888;margin-top:2px">40% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Workload east-west policy. VMware, CrowdStrike, Defender, Illumio, virtualisation depth.</div></div>
-        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Block Data Exfiltration</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 16 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Cloud egress control. MSS/DLP spend, Palo Alto, Fortinet, Trend Micro, content filtering depth.</div></div>
-        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Accelerate Secure Dev Velocity</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 13 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">IaC/DevSecOps buyer. Terraform, GitHub Enterprise, GitLab, Docker, container depth.</div></div>
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Prevent Lateral Movement</div><div style="font-size:10px;color:#888;margin-top:2px">40% · max 20 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Workload east-west policy. VMware, CrowdStrike, SentinelOne, Carbon Black, Wiz, Prisma Cloud, Lacework, Sysdig, Illumio, Cloud Security depth.</div></div>
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Block Data Exfiltration</div><div style="font-size:10px;color:#888;margin-top:2px">35% · max 18 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">Cloud egress control. Trellix/Purview/Guardium DLP, Fortinet, Zscaler ZIA, Netskope SWG, Web Threat Protection depth.</div></div>
+        <div class="uc-card ztw"><div style="font-size:11px;font-weight:700">Accelerate Secure Dev Velocity</div><div style="font-size:10px;color:#888;margin-top:2px">25% · max 18 pts</div><div style="font-size:10px;color:#555;margin-top:4px;line-height:1.5">IaC/DevSecOps buyer. Terraform, Pulumi, GitHub, Snyk, Checkmarx, JFrog Xray, Sonatype, Veracode, DevSecOps category depth.</div></div>
       </div>
+    </div>
+  </div>
+
+  <!-- NEW SIGNALS v2.1 -->
+  <div class="key-section">
+    <div class="key-section-hdr" onclick="toggleKeySection('ks-new','ks-new-chev')">
+      <span>New Signals — v2.1 HG Catalog Expansion (29 signals added)</span><span id="ks-new-chev">▾</span>
+    </div>
+    <div id="ks-new" class="key-section-body">
+      <div class="key-note green"><strong>Added in v2.1</strong> from a full review of the June 2026 HG Product Catalog (26,709 products, 5-level taxonomy). Each signal was validated against the exact HG product name and category. ⭐ = new signal.</div>
+
+      <div style="font-size:11px;font-weight:700;color:#0D6E94;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTN New Signals</div>
+      <table class="key-table">
+        <thead><tr><th>Signal</th><th>Use case</th><th>Why added</th></tr></thead>
+        <tbody>
+          <tr><td>Versa Networks SD-WAN</td><td>UCNF</td><td>Top-3 enterprise SD-WAN vendor not previously covered. SD-WAN presence = fragmented WAN = UCNF opportunity. Versa is common in OBS's connectivity customer base.</td></tr>
+          <tr><td>Aryaka SD-WAN</td><td>UCNF</td><td>Managed SD-WAN targeting large enterprise. Aryaka customers are mid-migration from MPLS — the exact hybrid connectivity problem UCNF solves.</td></tr>
+          <tr><td>Alkira cloud networking</td><td>UCNF</td><td>Cloud networking platform directly competitive with Aviatrix. Presence signals the account is actively solving multi-cloud connectivity — high receptivity to UCNF conversation.</td></tr>
+          <tr><td>VMware SD-WAN / VeloCloud</td><td>UCNF</td><td>VMware acquired VeloCloud in 2017; now in maintenance mode post-Broadcom. Customers on VeloCloud are actively evaluating replacements — strong UCNF displacement opportunity.</td></tr>
+          <tr><td>Nokia Nuage Networks</td><td>UCNF</td><td>Nuage SDN/SD-WAN targets telecoms and large enterprise. OBS customers running Nuage have software-defined networking intent — receptive to Aviatrix UCNF as the cloud extension.</td></tr>
+          <tr><td>Cloud interconnect (Megaport, Equinix Fabric, Direct Connect, ExpressRoute)</td><td>UCNF</td><td>Dedicated DC-to-cloud circuits signal hybrid architecture with cloud workloads. These accounts have the connectivity investment but lack the unified control plane — the UCNF value proposition.</td></tr>
+          <tr><td>Forescout NAC</td><td>ZT Segmentation</td><td>Forescout is the second-largest NAC vendor after Cisco ISE. NAC = network access control at the perimeter layer only — no cloud VPC segmentation. High-intensity Forescout = large flat network = Aviatrix segmentation gap.</td></tr>
+          <tr><td>Aruba ClearPass NAC</td><td>ZT Segmentation</td><td>HPE Aruba ClearPass is the dominant NAC in higher education, healthcare, and government. Same flat-network signal as ISE — perimeter NAC without cloud east-west enforcement.</td></tr>
+          <tr><td>Portnox NAC</td><td>ZT Segmentation</td><td>Cloud-native NAC targeting mid-market. Portnox presence signals the account is modernizing network access control — receptive to adding cloud segmentation as the next layer.</td></tr>
+          <tr><td>Illumio / Guardicore (segmentation)</td><td>ZT Segmentation</td><td>Micro-segmentation incumbents. These accounts are already buying into the segmentation concept with agent-based tools. Aviatrix is the network-layer complement — no agents, no appliances, pure routing-based enforcement.</td></tr>
+          <tr><td>Palo Alto GlobalProtect VPN</td><td>Third-Party Access</td><td>GlobalProtect is the second most common enterprise VPN after AnyConnect. Same over-permissive network access problem — broad VPN tunnel vs scoped ZTNA policy.</td></tr>
+          <tr><td>Zscaler ZPA (ZTNA in-flight)</td><td>Third-Party Access</td><td>Zscaler ZPA scores 2 points (highest of any ZTNA signal) because presence means the account is already buying ZTNA. They understand the problem and are paying to solve it — Aviatrix adds the network-layer enforcement ZPA alone cannot provide for east-west and multi-cloud paths.</td></tr>
+          <tr><td>Cloudflare Access / Prisma Access / Cato / Netskope / AppGate</td><td>Third-Party Access</td><td>All ZTNA products categorized under IAM in HG. Presence signals active investment in zero trust access — each displaces a legacy VPN and creates an opportunity for Aviatrix to handle the network fabric layer these ZTNA tools bypass.</td></tr>
+          <tr><td>CyberArk PAS / Delinea</td><td>Third-Party Access</td><td>Enterprise PAM vendors beyond BeyondTrust. PAM controls privileged access at the identity layer but does not enforce network-level access boundaries. Aviatrix adds the network policy layer that PAM alone cannot provide.</td></tr>
+          <tr><td>Thales Luna HSM / Entrust nShield / SafeNet</td><td>E2E Encryption</td><td>HSM presence means encryption-at-rest is solved but in-transit encryption is often missing — especially cloud-to-DC and cloud-to-cloud paths. Aviatrix software-based tunnel encryption fills this gap without additional hardware.</td></tr>
+          <tr><td>WireGuard</td><td>E2E Encryption</td><td>WireGuard adoption signals the org is modernizing VPN/tunnel encryption. These accounts understand in-transit encryption requirements and are receptive to Aviatrix's patented tunnel multiplexing for cloud paths.</td></tr>
+        </tbody>
+      </table>
+
+      <div style="font-size:11px;font-weight:700;color:#6B2E9E;margin:.75rem 0 .4rem;text-transform:uppercase;letter-spacing:.3px">ZTW New Signals</div>
+      <table class="key-table">
+        <thead><tr><th>Signal</th><th>Use case</th><th>Why added</th></tr></thead>
+        <tbody>
+          <tr><td>SentinelOne</td><td>Prevent Lateral Movement</td><td>Third-largest EDR vendor after CrowdStrike and Defender. Endpoint detection covers the host layer — the gap is east-west network traffic between workloads, which Aviatrix fills. Previously scored 0 despite being common in large enterprise.</td></tr>
+          <tr><td>VMware Carbon Black</td><td>Prevent Lateral Movement</td><td>Carbon Black (now VMware/Broadcom) is EDR + workload protection. Same rationale as SentinelOne — host-layer coverage with a network-layer gap. Common in financial services and regulated industries.</td></tr>
+          <tr><td>Cisco XDR / Secure Endpoint</td><td>Prevent Lateral Movement</td><td>Cisco's EDR/XDR platform. Accounts running Cisco Secure Endpoint are Cisco-centric shops — high receptivity to Aviatrix given OBS's Cisco relationship and Aviatrix's Cisco displacement narrative.</td></tr>
+          <tr><td>Guardicore micro-segmentation (ZTW)</td><td>Prevent Lateral Movement</td><td>Guardicore (Akamai) uses agent-based micro-segmentation for workloads. Aviatrix is the network-layer complement — routing-based east-west control without agents. Also signals ZTN Segmentation (scored in both use cases).</td></tr>
+          <tr><td>Cisco Secure Workload / Tetration</td><td>Prevent Lateral Movement</td><td>Cisco's workload micro-segmentation platform. High-complexity deployment signaling a mature security team that understands lateral movement risk. Strong receptivity to Aviatrix as the network enforcement layer.</td></tr>
+          <tr><td>Wiz (CNAPP)</td><td>Prevent Lateral Movement</td><td>Fastest-growing cloud security platform. Wiz provides cloud posture and workload visibility but not network-layer enforcement. Presence signals a cloud-mature security team actively investing in workload protection — the exact buyer for Aviatrix ZTW.</td></tr>
+          <tr><td>Palo Alto Prisma Cloud</td><td>Prevent Lateral Movement</td><td>CNAPP platform with CSPM, CWPP, and code security. Prisma Cloud customers understand multi-layer cloud security. The network enforcement layer (Aviatrix) is typically the missing component alongside Prisma Cloud's agent-based controls.</td></tr>
+          <tr><td>Lacework (CSPM/CWPP)</td><td>Prevent Lateral Movement</td><td>Cloud security platform targeting DevOps teams. Lacework presence = cloud-native engineering organization actively managing workload risk. High alignment with the Aviatrix ZTW Prevent Lateral Movement use case.</td></tr>
+          <tr><td>Sysdig Secure</td><td>Prevent Lateral Movement</td><td>Container and Kubernetes runtime security. Sysdig detects threats at container runtime — Aviatrix adds the network policy layer to contain and isolate compromised containers before lateral movement occurs.</td></tr>
+          <tr><td>Orca Security</td><td>Prevent Lateral Movement</td><td>Agentless CWPP — scans cloud workloads without installing agents. Orca customers are cloud-mature and security-focused. Same gap as Wiz: visibility without network-layer enforcement.</td></tr>
+          <tr><td>Cloud Security category depth (L4)</td><td>Prevent Lateral Movement</td><td>65 products in HG Cloud Security L4 (CWPP, CNAPP, CSPM). This was the biggest gap in v2.0 — the entire cloud workload security category scored 0. 2+ products in this category = the org is investing in workload security and needs the network layer.</td></tr>
+          <tr><td>Microsoft Purview DLP</td><td>Block Data Exfiltration</td><td>Microsoft 365-native DLP. Purview controls data classification and policy at the application layer — it does not inspect network egress. Aviatrix provides the network-layer egress control that Purview cannot enforce for cloud-bound traffic.</td></tr>
+          <tr><td>IBM Guardium Data Protection</td><td>Block Data Exfiltration</td><td>Enterprise database activity monitoring and DLP. Common in banking and regulated industries. Guardium monitors database queries — Aviatrix enforces the network paths those queries traverse, preventing exfiltration at the network layer.</td></tr>
+          <tr><td>Imperva Data Security</td><td>Block Data Exfiltration</td><td>WAF + data security platform. Imperva presence signals the account invests in data protection infrastructure. The Aviatrix complement: network egress filtering for cloud workloads that Imperva's WAF doesn't cover.</td></tr>
+          <tr><td>Zscaler Internet Access / Netskope SWG</td><td>Block Data Exfiltration</td><td>Cloud-delivered egress inspection. ZIA and Netskope SWG solve internet-bound traffic — they do not enforce east-west cloud network paths or workload-to-workload communication. Aviatrix fills the internal cloud egress gap.</td></tr>
+          <tr><td>Web-based Threat Protection category depth (L5)</td><td>Block Data Exfiltration</td><td>116 products in HG Web Threat Protection L5 (SWG, CASB, WAF). Depth in this category signals the org is actively managing cloud egress risk — receptive to Aviatrix as the network-layer enforcement point alongside these tools.</td></tr>
+          <tr><td>Snyk (SCA/SAST)</td><td>Accelerate Secure Dev Velocity</td><td>Most widely deployed developer security tool. Snyk in the pipeline means the engineering team is already doing shift-left security. Aviatrix's Terraform provider and IaC-native policy deployment is the natural next layer for teams already using Snyk.</td></tr>
+          <tr><td>Checkmarx (SAST/SCA)</td><td>Accelerate Secure Dev Velocity</td><td>Enterprise SAST platform. Checkmarx presence signals a mature AppSec program and a security-aware engineering organization. These teams already understand that security must be in the pipeline — Aviatrix network-as-code completes that picture.</td></tr>
+          <tr><td>JFrog Xray</td><td>Accelerate Secure Dev Velocity</td><td>Artifact security scanning integrated into JFrog Artifactory. Teams running JFrog have mature artifact pipelines — Aviatrix policy-as-code can be deployed alongside artifact promotion stages.</td></tr>
+          <tr><td>Sonatype Lifecycle (SCA)</td><td>Accelerate Secure Dev Velocity</td><td>Open source dependency management. Sonatype signals Java/enterprise engineering stack with mature dependency governance. Aviatrix's Terraform provider fits naturally into these IaC-heavy pipelines.</td></tr>
+          <tr><td>Veracode (AppSec)</td><td>Accelerate Secure Dev Velocity</td><td>Enterprise AppSec governance platform. Veracode customers typically have centralized AppSec programs and governance requirements — receptive to network security policy-as-code as part of the same governance framework.</td></tr>
+          <tr><td>GitGuardian (secrets detection)</td><td>Accelerate Secure Dev Velocity</td><td>Detects leaked credentials in code repos. Presence signals the org has had credential exposure incidents or is proactively managing secrets risk. These teams understand the pipeline security gap — Aviatrix adds the network enforcement layer.</td></tr>
+          <tr><td>Aqua Security</td><td>Accelerate Secure Dev Velocity</td><td>Container and Kubernetes security from build to runtime. Aqua customers are running containerized workloads at scale — the exact environment where Aviatrix UCNF and workload policy provides the network layer Aqua does not cover.</td></tr>
+          <tr><td>Pulumi (IaC)</td><td>Accelerate Secure Dev Velocity</td><td>Infrastructure as code in general-purpose languages (TypeScript, Python, Go). Pulumi teams are developer-centric and deploy infrastructure programmatically. Aviatrix's SDK and provider integrate into Pulumi stacks with zero workflow change.</td></tr>
+          <tr><td>DevSecOps category depth (L5)</td><td>Accelerate Secure Dev Velocity</td><td>72 products in HG DevSecOps L5 — the entire SCA/SAST/container security category scored 0 in v2.0. 2+ products = mature DevSecOps practice with an engineering team already buying security tooling for the pipeline. Highest-precision new category signal added.</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 
