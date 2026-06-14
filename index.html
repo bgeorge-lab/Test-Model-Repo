@@ -17,7 +17,7 @@ header{background:#1A1A1A;padding:0.7rem 1.5rem;display:flex;align-items:center;
 
 /* Layout */
 .layout{display:flex;min-height:calc(100vh - 40px);transition:margin-right 0.25s}
-.layout.panel-open{margin-right:420px}
+.layout.panel-open{margin-right:640px}
 .main-col{flex:1;min-width:0;padding:1.1rem 0.75rem}
 
 /* Upload */
@@ -81,7 +81,7 @@ td{padding:7px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pztw{background:#F3E8FF;color:#4A235A}.pztn{background:#E0F4FF;color:#0B4F6C}
 
 /* ── SLIDE-IN PANEL ── */
-.panel{position:fixed;top:0;right:-440px;width:440px;height:100vh;background:#FFF;border-left:1px solid #E0E0E0;display:flex;flex-direction:column;transition:right 0.25s ease;z-index:200;box-shadow:-4px 0 20px rgba(0,0,0,.08)}
+.panel{position:fixed;top:0;right:-640px;width:640px;height:100vh;background:#FFF;border-left:1px solid #E0E0E0;display:flex;flex-direction:column;transition:right 0.25s ease;z-index:200;box-shadow:-4px 0 20px rgba(0,0,0,.08)}
 .panel.open{right:0}
 .panel-header{padding:.85rem 1rem;border-bottom:1px solid #EEE;display:flex;align-items:flex-start;gap:.6rem;flex-shrink:0;background:#FAFAFA}
 .panel-name{flex:1;font-size:14px;font-weight:700;line-height:1.3}
@@ -989,13 +989,13 @@ function openPanel(a){
       <span style="font-weight:600;color:${(a.confidence_pct||0)>=50?'#1A7F3C':'#B87000'}">${a.confidence_fired||0}/${a.confidence_total||0} signals fired</span>
     </div>
     <div class="score-pair">
-      <div class="pscore-card ztw">
-        <div class="pscore-label"><span><span class="pill pztw" style="margin-right:3px">ZTW</span>Workloads</span><span class="pill p${a.ztw_ti.toLowerCase()}">${a.ztw_ti}</span></div>
-        <div class="pscore-num ps-ztw">${a.ztw_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
-      </div>
       <div class="pscore-card ztn">
         <div class="pscore-label"><span><span class="pill pztn" style="margin-right:3px">ZTN</span>Networking</span><span class="pill p${a.ztn_ti.toLowerCase()}">${a.ztn_ti}</span></div>
         <div class="pscore-num ps-ztn">${a.ztn_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
+      </div>
+      <div class="pscore-card ztw">
+        <div class="pscore-label"><span><span class="pill pztw" style="margin-right:3px">ZTW</span>Workloads</span><span class="pill p${a.ztw_ti.toLowerCase()}">${a.ztw_ti}</span></div>
+        <div class="pscore-num ps-ztw">${a.ztw_sc}<span style="font-size:11px;font-weight:400;color:#888">/100</span></div>
       </div>
     </div>`;
   document.getElementById('p-body').innerHTML=ob1pSection(a)+intentSection(a)+cloudMatSection(a)
