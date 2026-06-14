@@ -595,8 +595,8 @@ function scoreAcct(a){
     let raw=0,mxR=0;
     for(const[uc,ss] of Object.entries(SPEND[pl])){
       let ucPts=0;const spendDetail=[];
-      for(const s of ss){const v=parseFloat(a.spend[s.c])||0;const p=spts(v,s);ucPts+=p;spendDetail.push({label:s.label,col:s.c,value:v,pts:p,maxPts:s.p[0],thH:s.h,thM:s.m});}
-      const ir=scoreInst(a.insts,uc,pl);ucPts+=ir.pts;
+      for(const s of ss){const v=a.spend?parseFloat(a.spend[s.c])||0:0;const p=spts(v,s);ucPts+=p;spendDetail.push({label:s.label,col:s.c,value:v,pts:p,maxPts:s.p[0],thH:s.h,thM:s.m});}
+      const ir=scoreInst(a.insts||[],uc,pl);ucPts+=ir.pts;
       res[pl][uc]={pts:ucPts,max:MX[pl][uc],spendDetail,installDetail:ir.detail};
       raw+=ucPts*W[pl][uc];mxR+=MX[pl][uc]*W[pl][uc];
     }
@@ -2178,7 +2178,7 @@ function sessionPayload(){
       lh_sc:a.lh_sc,lh_tier:a.lh_tier,ztw_sc:a.ztw_sc,ztw_ti:a.ztw_ti,ztw_tp:a.ztw_tp,
       ztn_sc:a.ztn_sc,ztn_ti:a.ztn_ti,ztn_tp:a.ztn_tp,lh_available:a.lh_available,lh_sources:a.lh_sources,
       hgFit_sc:a.hgFit_sc,ztw:a.ztw,ztn:a.ztn,ztw_firmo:a.ztw_firmo,ztn_firmo:a.ztn_firmo,
-      insts:a.insts,spend:a.spend,cloudMat:a.cloudMat,intentTopics:a.intentTopics,
+      insts:a.insts||[],spend:a.spend||{},cloudMat:a.cloudMat,intentTopics:a.intentTopics||[],
       signal:a.signal,signal_dual:a.signal_dual,hasInMarket:a.hasInMarket,hasQualify:a.hasQualify,
       intentByUC:a.intentByUC,confidence_pct:a.confidence_pct,confidence_fired:a.confidence_fired,confidence_total:a.confidence_total,
     }))
