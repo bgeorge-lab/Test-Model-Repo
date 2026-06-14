@@ -2226,14 +2226,27 @@ function restoreSession(data){
     loadedFiles.ob1p=(data.loadedFiles||{}).ob1p||[];loadedFiles.zi=(data.loadedFiles||{}).zi||[];loadedFiles.hgi=(data.loadedFiles||{}).hgi||[];
     changeLog=data.changeLog||[];sessionName=data.sessionName||null;
     if(!rawAccounts.length)return false;
-    accounts=rawAccounts.map(a=>{
-      const ob1p=ob1pMap[a.name]??ob1pMap[a.name_norm]??ob1pMap[fuzzyName(a.name)]??null;
-      const ob1pDet=ob1pDetailMap[a.name]??ob1pDetailMap[a.name_norm]??ob1pDetailMap[fuzzyName(a.name)]??null;
-      const zi=ziMap[a.name]??ziMap[a.name_norm]??null;
-      const hgi=hgiMap[a.name]??hgiMap[a.name_norm]??null;
-      const enriched={...a,ob1p_score:ob1p,ob1p_detail:ob1pDet,zi_intent_score:zi,hg_intent_score:hgi};
-      return{...enriched,...scoreAcct(enriched)};
-    });
+    // If saved accounts have install detail, use them directly — rawAccounts may lack insts
+    const hasInstallData = (data.accounts||[]).some(a=>
+      a.ztn && Object.values(a.ztn).some(uc=>uc.installDetail && uc.installDetail.some(s=>s.pts>0))
+    );
+    if(hasInstallData && data.accounts && data.accounts.length === rawAccounts.length){
+      // Use pre-scored accounts, just refresh ob1p/zi/hgi lookups
+      accounts = data.accounts.map(a=>{
+        const ob1p=ob1pMap[a.name]??ob1pMap[normName(a.name)]??ob1pMap[fuzzyName(a.name)]??null;
+        const ob1pDet=ob1pDetailMap[a.name]??ob1pDetailMap[normName(a.name)]??ob1pDetailMap[fuzzyName(a.name)]??null;
+        return {...a, ob1p_score:ob1p??a.ob1p_score, ob1p_detail:ob1pDet??a.ob1p_detail};
+      });
+    } else {
+      accounts=rawAccounts.map(a=>{
+        const ob1p=ob1pMap[a.name]??ob1pMap[a.name_norm]??ob1pMap[fuzzyName(a.name)]??null;
+        const ob1pDet=ob1pDetailMap[a.name]??ob1pDetailMap[a.name_norm]??ob1pDetailMap[fuzzyName(a.name)]??null;
+        const zi=ziMap[a.name]??ziMap[a.name_norm]??null;
+        const hgi=hgiMap[a.name]??hgiMap[a.name_norm]??null;
+        const enriched={...a,ob1p_score:ob1p,ob1p_detail:ob1pDet,zi_intent_score:zi,hg_intent_score:hgi};
+        return{...enriched,...scoreAcct(enriched)};
+      });
+    }
     document.getElementById('up').style.display='none';
     document.getElementById('main-ui').style.display='block';
     document.getElementById('btn-save').style.display='block';
