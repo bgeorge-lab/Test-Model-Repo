@@ -300,7 +300,10 @@ td{padding:7px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
           <tbody id="tb"></tbody>
         </table>
       </div>
-      <div id="trep" style="display:none"><div id="rep-content"></div></div>
+      <div id="trep" style="display:none">
+  <div id="rep-header"></div>
+  <div id="rep-cards"></div>
+</div>
       <div id="tdist" style="display:none"><div class="dg" id="dg"></div></div>
       <div id="tkey" style="display:none" id="tkey"></div>
     </div>
@@ -1747,9 +1750,16 @@ function toggleRepChip(el){
   const val = el.dataset.filter;
   if(val === 'all'){
     activeRepFilters.clear();
+    document.querySelectorAll('.rfchip').forEach(c=>c.classList.toggle('active', c.dataset.filter==='all'));
   } else {
     if(activeRepFilters.has(val)) activeRepFilters.delete(val);
     else activeRepFilters.add(val);
+    // Update chip visual states in-place without full re-render
+    document.querySelectorAll('.rfchip').forEach(c=>{
+      const f = c.dataset.filter;
+      if(f === 'all') c.classList.toggle('active', activeRepFilters.size===0);
+      else c.classList.toggle('active', activeRepFilters.has(f));
+    });
   }
   renderRep();
 }
@@ -1781,8 +1791,43 @@ function handleRepFile(file){
   };
   r.readAsArrayBuffer(file);
 }
+function renderRepHeader(){
+  const hdr = document.getElementById('rep-header');
+  if(!hdr || hdr.dataset.init) return;
+  hdr.dataset.init = '1';
+  const assigned = Object.keys(repMap).length;
+  hdr.innerHTML = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">'
+    + '<span style="font-size:11px;color:#888">'+(assigned>0?assigned+' manual assignments':'Grouped by AE workbook')+'</span>'
+    + '<button onclick="triggerRepUpload()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer">&#8593; Upload rep assignments</button>'
+    + (assigned>0?'<button onclick="clearRepMap()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer;color:#888">Clear</button>':'')
+    + '<a href="#" onclick="downloadRepTemplate();return false" style="font-size:11px;color:#0D6E94">&#8595; Download template</a>'
+    + '</div>'
+    + '<div class="rep-filter-bar" style="display:flex;flex-direction:column;gap:.4rem">'
+    + '<div style="display:flex;align-items:center;gap:.6rem">'
+    + '<input class="ae-search" id="ae-search-input" type="text" placeholder="Search AE name…" oninput="aeSearchQuery=this.value;renderRep()" />'
+    + '</div>'
+    + '<div id="rep-filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Filter:</span>'
+    + '<button class="rfchip fchip active" data-filter="all" onclick="toggleRepChip(this)">All</button>'
+    + '<button class="rfchip fchip" data-filter="inmarket" onclick="toggleRepChip(this)">🟢 IN MARKET</button>'
+    + '<button class="rfchip fchip" data-filter="qualify" onclick="toggleRepChip(this)">🟡 QUALIFY</button>'
+    + '<button class="rfchip fchip" data-filter="has1p" onclick="toggleRepChip(this)">Has 1P</button>'
+    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Signal:</span>'
+    + '<button class="rfchip fchip" data-filter="sigA" onclick="toggleRepChip(this)">A</button>'
+    + '<button class="rfchip fchip" data-filter="sigB" onclick="toggleRepChip(this)">B</button>'
+    + '<button class="rfchip fchip" data-filter="sigC" onclick="toggleRepChip(this)">C</button>'
+    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
+    + '<span style="font-size:10px;color:#888;font-weight:600">Tier:</span>'
+    + '<button class="rfchip fchip" data-filter="t1" onclick="toggleRepChip(this)">T1</button>'
+    + '<button class="rfchip fchip" data-filter="t2" onclick="toggleRepChip(this)">T2</button>'
+    + '</div>'
+    + '</div>';
+}
+
 function renderRep(){
-  const el = document.getElementById('rep-content');
+  renderRepHeader();
+  const el = document.getElementById('rep-cards');
   if(!el) return;
 
   const assigned = Object.keys(repMap).length;
@@ -1831,35 +1876,7 @@ function renderRep(){
     return a.localeCompare(b);
   });
 
-  let out = '<div style="display:flex;gap:8px;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">'
-    + '<span style="font-size:11px;color:#888">'+(assigned>0?assigned+' manual assignments':'Grouped by AE workbook')+'</span>'
-    + '<button onclick="triggerRepUpload()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer">&#8593; Upload rep assignments</button>'
-    + (assigned>0?'<button onclick="clearRepMap()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer;color:#888">Clear</button>':'')
-    + '<a href="#" onclick="downloadRepTemplate();return false" style="font-size:11px;color:#0D6E94">&#8595; Download template</a>'
-    + '</div>'
-    + '<div class="rep-filter-bar" style="display:flex;flex-direction:column;gap:.4rem">'
-    + '<div style="display:flex;align-items:center;gap:.6rem">'
-    + '<input class="ae-search" id="ae-search-input" type="text" placeholder="Search AE name…" value="'+aeSearchQuery+'" oninput="aeSearchQuery=this.value;renderRep()" />'
-    + (aeSearchQuery ? '<button onclick="aeSearchQuery=\'\';document.getElementById(\'ae-search-input\').value=\'\';renderRep()" style="font-size:11px;color:#888;background:none;border:none;cursor:pointer;padding:0">✕ clear</button>' : '')
-    + '</div>'
-    + '<div id="rep-filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
-    + '<span style="font-size:10px;color:#888;font-weight:600">Filter:</span>'
-    + '<button class="rfchip fchip'+(activeRepFilters.size===0?' active':'')+'" data-filter="all" onclick="toggleRepChip(this)">All</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('inmarket')?' active':'')+'" data-filter="inmarket" onclick="toggleRepChip(this)">🟢 IN MARKET</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('qualify')?' active':'')+'" data-filter="qualify" onclick="toggleRepChip(this)">🟡 QUALIFY</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('has1p')?' active':'')+'" data-filter="has1p" onclick="toggleRepChip(this)">Has 1P</button>'
-    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
-    + '<span style="font-size:10px;color:#888;font-weight:600">Signal:</span>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('sigA')?' active':'')+'" data-filter="sigA" onclick="toggleRepChip(this)">A</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('sigB')?' active':'')+'" data-filter="sigB" onclick="toggleRepChip(this)">B</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('sigC')?' active':'')+'" data-filter="sigC" onclick="toggleRepChip(this)">C</button>'
-    + '<span style="font-size:10px;color:#CCC;margin:0 2px">|</span>'
-    + '<span style="font-size:10px;color:#888;font-weight:600">Tier:</span>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('t1')?' active':'')+'" data-filter="t1" onclick="toggleRepChip(this)">T1</button>'
-    + '<button class="rfchip fchip'+(activeRepFilters.has('t2')?' active':'')+'" data-filter="t2" onclick="toggleRepChip(this)">T2</button>'
-    + '</div>'
-    + '</div>'
-    + '</div>';
+  let out = '';
 
   for(const ae of sortedAEs){
     const accts = groups[ae];
@@ -1949,7 +1966,11 @@ function swTab(t,ev){
   document.getElementById('tdist').style.display=t==='dist'?'block':'none';
   document.getElementById('tkey').style.display=t==='key'?'block':'none';
   if(t==='key') renderKey();
-  if(t==='rep') renderRep();
+  if(t==='rep'){
+    const hdr = document.getElementById('rep-header');
+    if(hdr) delete hdr.dataset.init;
+    renderRep();
+  }
 }
 
 
