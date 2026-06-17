@@ -59,6 +59,9 @@ header{background:#1A1A1A;padding:0.7rem 1.5rem;display:flex;align-items:center;
 .expbtn{margin-left:auto;font-size:12px;height:28px;padding:0 10px;border-radius:6px;border:1px solid #DDD;background:#FFF;cursor:pointer}
 .ae-card{transition:box-shadow .15s}.ae-card:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .rep-filter-bar{position:sticky;top:40px;z-index:90;background:#F8F7F5;padding:.5rem 0 .4rem;border-bottom:1px solid #E5E5E5;margin-bottom:.75rem}
+.ae-search{height:30px;padding:0 10px 0 30px;border-radius:15px;border:1px solid #DDD;background:#FFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 9px center;font-size:12px;color:#333;outline:none;min-width:180px}
+.ae-search:focus{border-color:#0D6E94;box-shadow:0 0 0 2px rgba(13,110,148,.1)}
+.ae-search::placeholder{color:#BBB}
 .fchip{font-size:11px;height:24px;padding:0 9px;border-radius:12px;border:1px solid #DDD;background:#FFF;cursor:pointer;white-space:nowrap;color:#666}
 .fchip:hover{background:#F5F5F5}
 .fchip.active{background:#1A1A1A;color:#FFF;border-color:#1A1A1A}
@@ -255,7 +258,7 @@ td{padding:7px 12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <div id="taccts">
         <div class="controls" style="flex-direction:column;align-items:stretch;gap:6px">
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input type="text" id="srch" placeholder="Search accounts or industry..." oninput="renderTbl()" style="flex:1;min-width:180px">
+            <input type="text" id="srch" placeholder="Search accounts, industry or AE…" oninput="renderTbl()" style="flex:1;min-width:180px">
 
             <button class="expbtn" onclick="doExport()">↓ Export CSV</button>
           </div>
@@ -764,6 +767,7 @@ function rescoreAll(){
 // Filter chip state — true multi-select using Sets
 const activeFilters = {src: new Set(), sig: new Set(), ztn: new Set()};
 const activeRepFilters = new Set(); // persists across renderRep() calls
+let aeSearchQuery = ''; // persists across renderRep() calls
 let sortState = {col:'lh', dir:'desc'};
 
 function toggleChipByVal(val, group){
@@ -872,7 +876,10 @@ function getFilt(){
   const s=document.getElementById('srt')?.value||'lh';
   const {src, sig, ztn} = activeFilters;
   let res=accounts.filter(a=>{
-    if(q&&!a.name.toLowerCase().includes(q)&&!a.ind.toLowerCase().includes(q))return false;
+    if(q){
+      const ae = (repMap[a.name]||repMap[normName(a.name)])?.rep||(a.ob1p_detail?.ae||'');
+      if(!a.name.toLowerCase().includes(q)&&!a.ind.toLowerCase().includes(q)&&!ae.toLowerCase().includes(q))return false;
+    }
     // Source filters — account must match ALL active source filters
     if(src.size > 0){
       const pass = [...src].every(f=>{
@@ -1810,6 +1817,14 @@ function renderRep(){
       return b.lh_sc-a.lh_sc;
     });
   }
+  // Filter AE groups by search query
+  if(aeSearchQuery.trim()){
+    const q = aeSearchQuery.toLowerCase();
+    for(const ae of Object.keys(groups)){
+      if(!ae.toLowerCase().includes(q)) delete groups[ae];
+    }
+  }
+
   const sortedAEs = Object.keys(groups).sort((a,b)=>{
     if(a==='Unassigned') return 1;
     if(b==='Unassigned') return -1;
@@ -1822,7 +1837,12 @@ function renderRep(){
     + (assigned>0?'<button onclick="clearRepMap()" style="font-size:11px;height:26px;padding:0 10px;border-radius:5px;border:1px solid #DDD;background:#FFF;cursor:pointer;color:#888">Clear</button>':'')
     + '<a href="#" onclick="downloadRepTemplate();return false" style="font-size:11px;color:#0D6E94">&#8595; Download template</a>'
     + '</div>'
-    + '<div class="rep-filter-bar"><div id="rep-filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
+    + '<div class="rep-filter-bar" style="display:flex;flex-direction:column;gap:.4rem">'
+    + '<div style="display:flex;align-items:center;gap:.6rem">'
+    + '<input class="ae-search" id="ae-search-input" type="text" placeholder="Search AE name…" value="'+aeSearchQuery+'" oninput="aeSearchQuery=this.value;renderRep()" />'
+    + (aeSearchQuery ? '<button onclick="aeSearchQuery=\'\';document.getElementById(\'ae-search-input\').value=\'\';renderRep()" style="font-size:11px;color:#888;background:none;border:none;cursor:pointer;padding:0">✕ clear</button>' : '')
+    + '</div>'
+    + '<div id="rep-filter-chips" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">'
     + '<span style="font-size:10px;color:#888;font-weight:600">Filter:</span>'
     + '<button class="rfchip fchip'+(activeRepFilters.size===0?' active':'')+'" data-filter="all" onclick="toggleRepChip(this)">All</button>'
     + '<button class="rfchip fchip'+(activeRepFilters.has('inmarket')?' active':'')+'" data-filter="inmarket" onclick="toggleRepChip(this)">🟢 IN MARKET</button>'
@@ -1837,7 +1857,9 @@ function renderRep(){
     + '<span style="font-size:10px;color:#888;font-weight:600">Tier:</span>'
     + '<button class="rfchip fchip'+(activeRepFilters.has('t1')?' active':'')+'" data-filter="t1" onclick="toggleRepChip(this)">T1</button>'
     + '<button class="rfchip fchip'+(activeRepFilters.has('t2')?' active':'')+'" data-filter="t2" onclick="toggleRepChip(this)">T2</button>'
-    + '</div></div>';
+    + '</div>'
+    + '</div>'
+    + '</div>';
 
   for(const ae of sortedAEs){
     const accts = groups[ae];
